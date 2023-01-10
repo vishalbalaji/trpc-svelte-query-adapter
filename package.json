@@ -8,5 +8,11 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC"
+  "license": "ISC",
+  "dependencies": {
+    "@trpc/client": "^10.8.1",
+    "@trpc/server": "^10.8.1",
+    "trpc-sveltekit": "^3.2.4",
+		"svelte-app": "workspace:*"
+  }
 }
