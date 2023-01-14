@@ -1,7 +1,6 @@
 import DeepProxy from 'proxy-deep';
 
-// import type { AnyRouter } from '@trpc/server';
-import type { Router as TRouter } from '../../../apps/svelte-app/types';
+import type { AnyRouter } from '@trpc/server';
 import type { createTRPCClient, TRPCClientInit } from 'trpc-sveltekit';
 import {
 	createQuery,
@@ -18,6 +17,44 @@ enum ProcedureNames {
 	infiniteQuery = 'useInfiniteQuery',
 	mutate = 'useMutation',
 	subscribe = 'useSubscription',
+	queryKey = 'getQueryKey'
+}
+
+export type QueryType = 'query' | 'infinite' | 'any';
+
+export type QueryKey = [
+	string[],
+	{ input?: unknown; type?: Exclude<QueryType, 'any'> }?,
+];
+
+function getQueryKey(
+	queryKey: string | [string] | [string, ...unknown[]] | unknown[],
+	input: unknown,
+	type: QueryType,
+): QueryKey {
+	const arrayPath = (typeof queryKey === 'string' ?
+		queryKey === '' ? [] : queryKey.split('.')
+		: queryKey) as [string]
+
+	if (!input && (!type || type === 'any'))
+		// for `utils.invalidate()` to match all queries (including vanilla react-query)
+		// we don't want nested array if path is empty, i.e. `[]` instead of `[[]]`
+		return arrayPath.length ? [arrayPath] : ([] as unknown as QueryKey);
+
+	return [
+		arrayPath,
+		{
+			...(typeof input !== 'undefined' && { input: input }),
+			...(type && type !== 'any' && { type: type }),
+		},
+	];
+}
+
+type GetQueryKey<TInput = undefined> = {
+	getQueryKey:
+	TInput extends undefined
+	? () => QueryKey
+	: (input: TInput, type?: QueryType) => QueryKey
 }
 
 type UseQueryProcedure<TInput, TOutput, TError> = {
@@ -30,7 +67,7 @@ type UseInfiniteQueryProcedure<TInput, TOutput, TError> = TInput extends { curso
 			=> ReturnType<typeof createInfiniteQuery<Awaited<TOutput>, TError>>
 	}
 	: {}
-type QueryProcedures<TInput, TOutput, TError> = UseQueryProcedure<TInput, TOutput, TError> & UseInfiniteQueryProcedure<TInput, TOutput, TError>
+type QueryProcedures<TInput, TOutput, TError> = UseQueryProcedure<TInput, TOutput, TError> & UseInfiniteQueryProcedure<TInput, TOutput, TError> & GetQueryKey<TInput>
 
 type UseMutationProcedure<TInput, TOutput, TError> = {
 	[ProcedureNames.mutate]: (input: TInput, opts?: CreateMutationOptions<TInput, TError>)
@@ -43,10 +80,10 @@ type AddQueryPropTypes<T, TError> = { [K in keyof T]:
 	T[K] extends { query: any } ? QueryProcedures<Parameters<T[K]['query']>[0], ReturnType<T[K]['query']>, TError>
 	: T[K] extends { mutate: any } ? UseMutationProcedure<Parameters<T[K]['mutate']>[0], ReturnType<T[K]['mutate']>, TError>
 	: T[K] extends { subscribe: any } ? UseSubscriptionProcedure<Parameters<T[K]['subscribe']>[0], ReturnType<T[K]['subscribe']>, TError>
-	: AddQueryPropTypes<T[K], TError>
-};
+	: AddQueryPropTypes<T[K], TError> & GetQueryKey
+} & {};
 
-export function svelteQueryWrapper(
+export function svelteQueryWrapper<TRouter extends AnyRouter>(
 	trpc: (init?: TRPCClientInit) => ReturnType<typeof createTRPCClient<TRouter>>
 ) {
 	type RouterError = TRPCClientError<TRouter>
@@ -58,19 +95,29 @@ export function svelteQueryWrapper(
 		type ClientWithQuery = AddQueryPropTypes<Client, RouterError> & { useContext(): unknown, useQueries: unknown }
 		return new DeepProxy({} as ClientWithQuery, {
 			get() {
-				return this.nest(() => {})
+				return this.nest(() => { })
 			},
 
 			apply(_target, _thisArg, argList) {
 				const procedure = this.path.pop()
 				const target = [...this.path].reduce((client, value) => client[value], client as Record<string, any>)
+				const [input, ...args] = argList
 
 				if (procedure === ProcedureNames.query) {
-					return createQuery(this.path, () => (target["query"] as (args: any[]) => any)(argList[0]), argList[1])
+					return createQuery(this.path, () => (target["query"] as (args: any[]) => any)(input), ...args)
 				} else if (procedure === ProcedureNames.infiniteQuery) {
-					return createInfiniteQuery(this.path, () => (target["query"] as (args: any[]) => any)(argList[0]), argList[1])
+					return createInfiniteQuery(this.path, () => (target["query"] as (args: any[]) => any)(input), ...args)
 				} else if (procedure === ProcedureNames.mutate) {
-					return createMutation(this.path, () => (target["mutate"] as (args: any[]) => any)(argList[0]), argList[1])
+					return createMutation(this.path, () => (target["mutate"] as (args: any[]) => any)(input), ...args)
+				} else if (procedure === ProcedureNames.queryKey) {
+					// NOTE: should probably handle for procedures like `useMutation`
+					// that don't have `getQueryKey`, but it is not handled
+					// in `@trpc/react-query` either.
+					return getQueryKey(
+						this.path,
+						input,
+						...args as [any]
+					)
 				}
 
 				return target[procedure as string]();
