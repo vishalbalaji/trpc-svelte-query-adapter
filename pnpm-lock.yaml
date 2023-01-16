@@ -1,0 +1,60 @@
+lockfileVersion: 5.4
+
+specifiers:
+  '@tanstack/svelte-query': ^4.22.1
+  '@trpc/client': ^10.8.1
+  '@trpc/server': ^10.8.1
+  proxy-deep: ^3.1.1
+  svelte: ^3.55.1
+  trpc-sveltekit: ^3.2.4
+
+dependencies:
+  '@tanstack/svelte-query': 4.22.2_svelte@3.55.1
+  '@trpc/client': 10.9.0_@trpc+server@10.9.0
+  '@trpc/server': 10.9.0
+  proxy-deep: 3.1.1
+  svelte: 3.55.1
+  trpc-sveltekit: 3.2.4
+
+packages:
+
+  /@tanstack/query-core/4.22.0:
+    resolution: {integrity: sha512-OeLyBKBQoT265f5G9biReijeP8mBxNFwY7ZUu1dKL+YzqpG5q5z7J/N1eT8aWyKuhyDTiUHuKm5l+oIVzbtrjw==}
+    dev: false
+
+  /@tanstack/svelte-query/4.22.2_svelte@3.55.1:
+    resolution: {integrity: sha512-e7PIMuRS3viilkMXrDOxYYnU7LbeqpyK6J+cQTtDjA9tFvAFzYt/9DSy5uhjKkNPh0jGFSmY2GBRa2UtSlGQJg==}
+    peerDependencies:
+      svelte: ^3.54.0
+    dependencies:
+      '@tanstack/query-core': 4.22.0
+      svelte: 3.55.1
+    dev: false
+
+  /@trpc/client/10.9.0_@trpc+server@10.9.0:
+    resolution: {integrity: sha512-id6318qpgqllNOuBp7nuciXFPXCe+zae5d4r1hze6Eyp5fFFNO58TqA+4Q44KIcHgpfWyW2egs6iPeql3PrdKA==}
+    peerDependencies:
+      '@trpc/server': 10.9.0
+    dependencies:
+      '@trpc/server': 10.9.0
+    dev: false
+
+  /@trpc/server/10.9.0:
+    resolution: {integrity: sha512-5psyZgbvy29pJND32hwkWTMbv6s86IbsPOeDopsgNF0VegZT6Dsijmb7Ub/TDhuJVQVq5u4u5briMXi3SxmBkw==}
+    dev: false
+
+  /proxy-deep/3.1.1:
+    resolution: {integrity: sha512-kppbvLUNJ4IOMZds9/4gz/rtT5OFiesy3XosLsgMKlF3vb6GA5Y3ptyDlzKLcOcUBW+zaY+RiMINTsgE+O6e+Q==}
+    dev: false
+
+  /svelte/3.55.1:
+    resolution: {integrity: sha512-S+87/P0Ve67HxKkEV23iCdAh/SX1xiSfjF1HOglno/YTbSTW7RniICMCofWGdJJbdjw3S+0PfFb1JtGfTXE0oQ==}
+    engines: {node: '>= 8'}
+    dev: false
+
+  /trpc-sveltekit/3.2.4:
+    resolution: {integrity: sha512-m7nU+pEfJNna/++yc6kuwe2GUbgRAuxl8PY8jTV9zKKbWhgOfpvjhRP0QgbbhnBXN9rKkQhTJZBDrBwZSszjqQ==}
+    dependencies:
+      '@trpc/client': 10.9.0_@trpc+server@10.9.0
+      '@trpc/server': 10.9.0
+    dev: false
