@@ -35,6 +35,8 @@ export function trpc(init?: TRPCClientInit) {
 to:
 
 ```typescript
+import { svelteQueryWrapper } from 'trpc-svelte-query-adapter';
+
 export const trpc = (init?: TRPCClientInit) => {
   if (typeof window === 'undefined') return createTRPCClient<Router>({ init });
   if (!browserClient) browserClient = createTRPCClient<Router>();
