@@ -4,6 +4,8 @@ This adapter provides an adapter to call `tRPC` procedures wrapped using `@tanst
 
 ## Usage
 
+> **NOTE:** This package is currently not hosted on `npm`. If you want to test this library, you would need to clone it locally and `npm link` to it.
+
 1. Setup `tRPC` as instructed in [trpc-sveltekit docs](https://icflorescu.github.io/trpc-sveltekit/getting-started).
 2. Setup `@tanstack/svelte-query` as instructed in [svelte-query docs](https://tanstack.com/query/v4/docs/svelte/overview) or as follows:
 
@@ -86,5 +88,4 @@ export const router = t.router({
 
 * This wrapper only supports `tRPC v10` onwards and is intended to be used only with `trpc-sveltekit`.
 * It is super early in development and has a lot of feature parity when compared to `@trpc/react-query`.
-* This package is currently not hosted on `npm`. If you want to test this library, you would need to clone it locally and `npm link` to it.
 * This project was made purely for fun and is in no way is linked to the actual development of `tRPC` or `svelte-query`. I fully expect this project to be dead whenever `tRPC` comes up with its official wrapper.
