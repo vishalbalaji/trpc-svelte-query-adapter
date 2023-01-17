@@ -87,5 +87,5 @@ export const router = t.router({
 ## Some Notes
 
 * This wrapper only supports `tRPC v10` onwards and is intended to be used only with `trpc-sveltekit`.
-* It is super early in development and has a lot of feature parity when compared to `@trpc/react-query`.
+* It is super early in development and has a lot of feature parity when compared to `@trpc/react-query`. See [#1](https://github.com/vishalbalaji/trpc-svelte-query-adapter/issues/1) for more details.
 * This project was made purely for fun and is in no way is linked to the actual development of `tRPC` or `svelte-query`. I fully expect this project to be dead whenever `tRPC` comes up with its official wrapper.
