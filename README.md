@@ -1,10 +1,10 @@
 # `tRPC` - `svelte-query` Adapter
 
-This adapter provides an adapter to call `tRPC` procedures wrapped using `@tanstack/svelte-query`, similar to <code>[@trpc/react-query](https://trpc.io/docs/react)</code>, to be used with <code>[trpc-sveltekit](https://icflorescu.github.io/trpc-sveltekit/)</code>. This is made possible using <code>[proxy-deep](https://www.npmjs.com/package/proxy-deep)</code>.
+This package provides an adapter to call `tRPC` procedures wrapped using `@tanstack/svelte-query`, similar to <code>[@trpc/react-query](https://trpc.io/docs/react)</code>, to be used with <code>[trpc-sveltekit](https://icflorescu.github.io/trpc-sveltekit/)</code>. This is made possible using <code>[proxy-deep](https://www.npmjs.com/package/proxy-deep)</code>.
 
 ## Usage
 
-> **NOTE:** This package is currently not hosted on `npm`. If you want to test this library, you would need to clone it locally and `npm link` to it.
+> **NOTE:** This package is currently not hosted on `npm`. If you want to try it, you would need to clone it locally and `npm link` to it.
 
 1. Setup `tRPC` as instructed in [trpc-sveltekit docs](https://icflorescu.github.io/trpc-sveltekit/getting-started).
 2. Setup `@tanstack/svelte-query` as instructed in [svelte-query docs](https://tanstack.com/query/v4/docs/svelte/overview) or as follows:
