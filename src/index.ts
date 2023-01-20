@@ -13,11 +13,12 @@ import {
 import type { TRPCClientError } from '@trpc/client';
 
 enum ProcedureNames {
-	query = 'useQuery',
+	query         = 'useQuery',
 	infiniteQuery = 'useInfiniteQuery',
-	mutate = 'useMutation',
-	subscribe = 'useSubscription',
-	queryKey = 'getQueryKey'
+	mutate        = 'useMutation',
+	subscribe     = 'useSubscription',
+	queryKey      = 'getQueryKey',
+	context       = 'useContext',
 }
 
 export type QueryType = 'query' | 'infinite' | 'any';
@@ -76,12 +77,63 @@ type UseMutationProcedure<TInput, TOutput, TError> = {
 
 type UseSubscriptionProcedure<TInput, TOutput, TError> = never
 
-type AddQueryPropTypes<T, TError> = { [K in keyof T]:
+type AddQueryPropTypes<T, TError> = {
+	[K in keyof T]:
 	T[K] extends { query: any } ? QueryProcedures<Parameters<T[K]['query']>[0], ReturnType<T[K]['query']>, TError>
 	: T[K] extends { mutate: any } ? UseMutationProcedure<Parameters<T[K]['mutate']>[0], ReturnType<T[K]['mutate']>, TError>
 	: T[K] extends { subscribe: any } ? UseSubscriptionProcedure<Parameters<T[K]['subscribe']>[0], ReturnType<T[K]['subscribe']>, TError>
 	: AddQueryPropTypes<T[K], TError> & GetQueryKey
 } & {};
+
+enum ContextProcedureNames {
+	fetch            = 'fetch',
+	prefetch         = 'prefetch',
+	fetchInfinite    = 'fetchInfinite',
+	prefetchInfinite = 'prefetchInfinite',
+	invalidate       = 'invalidate',
+	refetch          = 'refetch',
+	reset            = 'reset',
+	cancel           = 'cancel',
+	setData          = 'setData',
+	getData          = 'getData',
+	setInfiniteData  = 'setInfiniteData',
+	getInfiniteData  = 'getInfiniteData',
+}
+
+type ContextProcedures = {
+	[ContextProcedureNames.fetch]():            unknown
+	[ContextProcedureNames.prefetch]():         unknown
+	[ContextProcedureNames.fetchInfinite]():    unknown
+	[ContextProcedureNames.prefetchInfinite](): unknown
+	[ContextProcedureNames.invalidate]():       unknown
+	[ContextProcedureNames.refetch]():          unknown
+	[ContextProcedureNames.reset]():            unknown
+	[ContextProcedureNames.cancel]():           unknown
+	[ContextProcedureNames.setData]():          unknown
+	[ContextProcedureNames.getData]():          unknown
+	[ContextProcedureNames.setInfiniteData]():  unknown
+	[ContextProcedureNames.getInfiniteData]():  unknown
+} & {}
+
+type AddContextPropTypes<T> = {
+	[K in keyof T as T[K] extends { mutate: any } | { subscribe: any } ? never : K]:
+	T[K] extends { query: any } ? ContextProcedures
+	: AddContextPropTypes<T[K]> & { invalidate(): unknown }
+} & {};
+
+type UseContext<T> = AddContextPropTypes<T> & { invalidate(): unknown, client: T } & {}
+
+function getContextFn<TClient>(client: TClient) {
+	return new DeepProxy({} as UseContext<TClient>, {
+		get() {
+			return this.nest(() => { })
+		},
+
+		apply() {
+			return 'hello'
+		}
+	})
+}
 
 export function svelteQueryWrapper<TRouter extends AnyRouter>(
 	trpc: (init?: TRPCClientInit) => ReturnType<typeof createTRPCClient<TRouter>>
@@ -92,7 +144,7 @@ export function svelteQueryWrapper<TRouter extends AnyRouter>(
 		const client = trpc(init);
 		type Client = typeof client;
 
-		type ClientWithQuery = AddQueryPropTypes<Client, RouterError> & { useContext(): unknown, useQueries: unknown }
+		type ClientWithQuery = AddQueryPropTypes<Client, RouterError> & { useContext(): UseContext<Client>, useQueries: unknown }
 		return new DeepProxy({} as ClientWithQuery, {
 			get() {
 				return this.nest(() => { })
@@ -118,6 +170,8 @@ export function svelteQueryWrapper<TRouter extends AnyRouter>(
 						input,
 						...args as [any]
 					)
+				} else if (procedure === ProcedureNames.context) {
+					return getContextFn(client)
 				}
 
 				return target[procedure as string]();
