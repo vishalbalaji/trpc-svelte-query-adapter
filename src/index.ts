@@ -1,7 +1,9 @@
 import DeepProxy from 'proxy-deep';
 
+import type { TRPCClientError } from '@trpc/client';
 import type { AnyRouter } from '@trpc/server';
 import type { createTRPCClient, TRPCClientInit } from 'trpc-sveltekit';
+
 import {
 	createQuery,
 	createMutation,
@@ -10,7 +12,6 @@ import {
 	type CreateMutationOptions,
 	type CreateInfiniteQueryOptions,
 } from '@tanstack/svelte-query';
-import type { TRPCClientError } from '@trpc/client';
 
 enum ProcedureNames {
 	query         = 'useQuery',
@@ -86,6 +87,7 @@ type AddQueryPropTypes<T, TError> = {
 } & {};
 
 enum ContextProcedureNames {
+	client           = 'client',
 	fetch            = 'fetch',
 	prefetch         = 'prefetch',
 	fetchInfinite    = 'fetchInfinite',
@@ -118,19 +120,25 @@ type ContextProcedures = {
 type AddContextPropTypes<T> = {
 	[K in keyof T as T[K] extends { mutate: any } | { subscribe: any } ? never : K]:
 	T[K] extends { query: any } ? ContextProcedures
-	: AddContextPropTypes<T[K]> & { invalidate(): unknown }
+	: AddContextPropTypes<T[K]> & Pick<ContextProcedures, ContextProcedureNames.invalidate>
 } & {};
 
-type UseContext<T> = AddContextPropTypes<T> & { invalidate(): unknown, client: T } & {}
+type UseContext<T> = AddContextPropTypes<T> & Pick<ContextProcedures, ContextProcedureNames.invalidate> & { [ContextProcedureNames.client]: T }
 
 function getContextFn<TClient>(client: TClient) {
 	return new DeepProxy({} as UseContext<TClient>, {
-		get() {
+		get(_target, key, _receiver) {
+			if (key === ContextProcedureNames.client) return client;
+
 			return this.nest(() => { })
 		},
 
-		apply() {
-			return 'hello'
+		apply(_target, _thisArg, argList) {
+			const utilName = this.path.pop()
+			const target = [...this.path].reduce((client, value) => client[value], client as Record<string, any>)
+			const [input, ...args] = argList
+
+			throw new TypeError('contextMap[utilName] is not a function');
 		}
 	})
 }
@@ -174,7 +182,7 @@ export function svelteQueryWrapper<TRouter extends AnyRouter>(
 					return getContextFn(client)
 				}
 
-				return target[procedure as string]();
+				return target[procedure as string].call();
 			}
 		});
 	};
