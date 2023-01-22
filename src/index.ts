@@ -14,12 +14,12 @@ import {
 } from '@tanstack/svelte-query';
 
 enum ProcedureNames {
-	query         = 'useQuery',
+	query = 'useQuery',
 	infiniteQuery = 'useInfiniteQuery',
-	mutate        = 'useMutation',
-	subscribe     = 'useSubscription',
-	queryKey      = 'getQueryKey',
-	context       = 'useContext',
+	mutate = 'useMutation',
+	subscribe = 'useSubscription',
+	queryKey = 'getQueryKey',
+	context = 'useContext',
 }
 
 export type QueryType = 'query' | 'infinite' | 'any';
@@ -29,7 +29,7 @@ export type QueryKey = [
 	{ input?: unknown; type?: Exclude<QueryType, 'any'> }?,
 ];
 
-function getQueryKey(
+function getArrayQueryKey(
 	queryKey: string | [string] | [string, ...unknown[]] | unknown[],
 	input: unknown,
 	type: QueryType,
@@ -87,34 +87,34 @@ type AddQueryPropTypes<T, TError> = {
 } & {};
 
 enum ContextProcedureNames {
-	client           = 'client',
-	fetch            = 'fetch',
-	prefetch         = 'prefetch',
-	fetchInfinite    = 'fetchInfinite',
+	client = 'client',
+	fetch = 'fetch',
+	prefetch = 'prefetch',
+	fetchInfinite = 'fetchInfinite',
 	prefetchInfinite = 'prefetchInfinite',
-	invalidate       = 'invalidate',
-	refetch          = 'refetch',
-	reset            = 'reset',
-	cancel           = 'cancel',
-	setData          = 'setData',
-	getData          = 'getData',
-	setInfiniteData  = 'setInfiniteData',
-	getInfiniteData  = 'getInfiniteData',
+	invalidate = 'invalidate',
+	refetch = 'refetch',
+	reset = 'reset',
+	cancel = 'cancel',
+	setData = 'setData',
+	getData = 'getData',
+	setInfiniteData = 'setInfiniteData',
+	getInfiniteData = 'getInfiniteData',
 }
 
 type ContextProcedures = {
-	[ContextProcedureNames.fetch]():            unknown
-	[ContextProcedureNames.prefetch]():         unknown
-	[ContextProcedureNames.fetchInfinite]():    unknown
+	[ContextProcedureNames.fetch](): unknown
+	[ContextProcedureNames.prefetch](): unknown
+	[ContextProcedureNames.fetchInfinite](): unknown
 	[ContextProcedureNames.prefetchInfinite](): unknown
-	[ContextProcedureNames.invalidate]():       unknown
-	[ContextProcedureNames.refetch]():          unknown
-	[ContextProcedureNames.reset]():            unknown
-	[ContextProcedureNames.cancel]():           unknown
-	[ContextProcedureNames.setData]():          unknown
-	[ContextProcedureNames.getData]():          unknown
-	[ContextProcedureNames.setInfiniteData]():  unknown
-	[ContextProcedureNames.getInfiniteData]():  unknown
+	[ContextProcedureNames.invalidate](): unknown
+	[ContextProcedureNames.refetch](): unknown
+	[ContextProcedureNames.reset](): unknown
+	[ContextProcedureNames.cancel](): unknown
+	[ContextProcedureNames.setData](): unknown
+	[ContextProcedureNames.getData](): unknown
+	[ContextProcedureNames.setInfiniteData](): unknown
+	[ContextProcedureNames.getInfiniteData](): unknown
 } & {}
 
 type AddContextPropTypes<T> = {
@@ -125,7 +125,7 @@ type AddContextPropTypes<T> = {
 
 type UseContext<T> = AddContextPropTypes<T> & Pick<ContextProcedures, ContextProcedureNames.invalidate> & { [ContextProcedureNames.client]: T }
 
-function getContextFn<TClient>(client: TClient) {
+function createGetContextProxy<TClient>(client: TClient) {
 	return new DeepProxy({} as UseContext<TClient>, {
 		get(_target, key, _receiver) {
 			if (key === ContextProcedureNames.client) return client;
@@ -135,6 +135,8 @@ function getContextFn<TClient>(client: TClient) {
 
 		apply(_target, _thisArg, argList) {
 			const utilName = this.path.pop()
+
+			// TODO: should probably replace `reduce` with `for...of` for better performance
 			const target = [...this.path].reduce((client, value) => client[value], client as Record<string, any>)
 			const [input, ...args] = argList
 
@@ -160,26 +162,32 @@ export function svelteQueryWrapper<TRouter extends AnyRouter>(
 
 			apply(_target, _thisArg, argList) {
 				const procedure = this.path.pop()
+
+				// TODO: should probably replace `reduce` with `for...of` for better performance
 				const target = [...this.path].reduce((client, value) => client[value], client as Record<string, any>)
 				const [input, ...args] = argList
 
 				if (procedure === ProcedureNames.query) {
-					return createQuery(this.path, () => (target["query"] as (args: any[]) => any)(input), ...args)
+					return createQuery(
+						getArrayQueryKey(this.path, input, 'query'), () => (target['query'] as (args: any[]) => any)(input), ...args
+					)
 				} else if (procedure === ProcedureNames.infiniteQuery) {
-					return createInfiniteQuery(this.path, () => (target["query"] as (args: any[]) => any)(input), ...args)
+					return createInfiniteQuery(
+						getArrayQueryKey(this.path, input, 'infinite'), () => (target['query'] as (args: any[]) => any)(input), ...args
+					)
 				} else if (procedure === ProcedureNames.mutate) {
-					return createMutation(this.path, () => (target["mutate"] as (args: any[]) => any)(input), ...args)
+					return createMutation(this.path, () => (target['mutate'] as (args: any[]) => any)(input), ...args)
 				} else if (procedure === ProcedureNames.queryKey) {
 					// NOTE: should probably handle for procedures like `useMutation`
 					// that don't have `getQueryKey`, but it is not handled
 					// in `@trpc/react-query` either.
-					return getQueryKey(
+					return getArrayQueryKey(
 						this.path,
 						input,
 						...args as [any]
 					)
 				} else if (procedure === ProcedureNames.context) {
-					return getContextFn(client)
+					return createGetContextProxy(client)
 				}
 
 				return target[procedure as string].call();
