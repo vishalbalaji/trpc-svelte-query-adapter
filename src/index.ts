@@ -146,11 +146,7 @@ function createUseContextProxy<TClient>(client: TClient) {
 			if (utilName === ContextProcedureNames.invalidate) {
 				const filters = args[0]
 
-				// Slight change here compared to `@trpc/react-query`, where
-				// `...filters` is provided after `queryKey` instead of before.
-				// This is so that `queryKey` can be overridden, allowing the user
-				// to invalidate `queries` and `infiniteQueries` separately if they want.
-				return queryClient.invalidateQueries({ queryKey: getArrayQueryKey(this.path, input, 'any'), ...filters });
+				return queryClient.invalidateQueries({ ...filters, queryKey: getArrayQueryKey(this.path, input, 'any') });
 			}
 
 			throw new TypeError('contextMap[utilName] is not a function');
