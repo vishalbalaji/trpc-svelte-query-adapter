@@ -127,7 +127,7 @@ type AddContextPropTypes<T> = {
 
 type UseContext<T> = AddContextPropTypes<T> & Pick<ContextProcedures<undefined>, ContextProcedureNames.invalidate> & { [ContextProcedureNames.client]: T }
 
-function createGetContextProxy<TClient>(client: TClient) {
+function createUseContextProxy<TClient>(client: TClient) {
 	const queryClient = useQueryClient();
 	return new DeepProxy({} as UseContext<TClient>, {
 		get(_target, key, _receiver) {
@@ -200,7 +200,7 @@ export function svelteQueryWrapper<TRouter extends AnyRouter>(
 						...args as [any]
 					)
 				} else if (procedure === ProcedureNames.context) {
-					return createGetContextProxy(client)
+					return createUseContextProxy(client)
 				}
 
 				return target[procedure as string].call();
