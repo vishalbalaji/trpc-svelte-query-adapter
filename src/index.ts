@@ -5,12 +5,14 @@ import type { AnyRouter } from '@trpc/server';
 import type { createTRPCClient, TRPCClientInit } from 'trpc-sveltekit';
 
 import {
+	useQueryClient,
 	createQuery,
 	createMutation,
 	createInfiniteQuery,
 	type CreateQueryOptions,
 	type CreateMutationOptions,
 	type CreateInfiniteQueryOptions,
+	type QueryFilters
 } from '@tanstack/svelte-query';
 
 enum ProcedureNames {
@@ -102,12 +104,12 @@ enum ContextProcedureNames {
 	getInfiniteData = 'getInfiniteData',
 }
 
-type ContextProcedures = {
+type ContextProcedures<TInput> = {
 	[ContextProcedureNames.fetch](): unknown
 	[ContextProcedureNames.prefetch](): unknown
 	[ContextProcedureNames.fetchInfinite](): unknown
 	[ContextProcedureNames.prefetchInfinite](): unknown
-	[ContextProcedureNames.invalidate](): unknown
+	[ContextProcedureNames.invalidate](input?: TInput, filters?: QueryFilters): void
 	[ContextProcedureNames.refetch](): unknown
 	[ContextProcedureNames.reset](): unknown
 	[ContextProcedureNames.cancel](): unknown
@@ -119,13 +121,14 @@ type ContextProcedures = {
 
 type AddContextPropTypes<T> = {
 	[K in keyof T as T[K] extends { mutate: any } | { subscribe: any } ? never : K]:
-	T[K] extends { query: any } ? ContextProcedures
-	: AddContextPropTypes<T[K]> & Pick<ContextProcedures, ContextProcedureNames.invalidate>
+	T[K] extends { query: any } ? ContextProcedures<Parameters<T[K]["query"]>[0]>
+	: AddContextPropTypes<T[K]> & Pick<ContextProcedures<T>, ContextProcedureNames.invalidate>
 } & {};
 
-type UseContext<T> = AddContextPropTypes<T> & Pick<ContextProcedures, ContextProcedureNames.invalidate> & { [ContextProcedureNames.client]: T }
+type UseContext<T> = AddContextPropTypes<T> & Pick<ContextProcedures<undefined>, ContextProcedureNames.invalidate> & { [ContextProcedureNames.client]: T }
 
 function createGetContextProxy<TClient>(client: TClient) {
+	const queryClient = useQueryClient();
 	return new DeepProxy({} as UseContext<TClient>, {
 		get(_target, key, _receiver) {
 			if (key === ContextProcedureNames.client) return client;
@@ -139,6 +142,16 @@ function createGetContextProxy<TClient>(client: TClient) {
 			// TODO: should probably replace `reduce` with `for...of` for better performance
 			const target = [...this.path].reduce((client, value) => client[value], client as Record<string, any>)
 			const [input, ...args] = argList
+
+			if (utilName === ContextProcedureNames.invalidate) {
+				const filters = args[0]
+
+				// Slight change here compared to `@trpc/react-query`, where
+				// `...filters` is provided after `queryKey` instead of before.
+				// This is so that `queryKey` can be overridden, allowing the user
+				// to invalidate `queries` and `infiniteQueries` separately if they want.
+				return queryClient.invalidateQueries({ queryKey: getArrayQueryKey(this.path, input, 'any'), ...filters });
+			}
 
 			throw new TypeError('contextMap[utilName] is not a function');
 		}
