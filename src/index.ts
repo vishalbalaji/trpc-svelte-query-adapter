@@ -122,7 +122,7 @@ type ContextProcedures<TInput> = {
 type AddContextPropTypes<T> = {
 	[K in keyof T as T[K] extends { mutate: any } | { subscribe: any } ? never : K]:
 	T[K] extends { query: any } ? ContextProcedures<Parameters<T[K]["query"]>[0]>
-	: AddContextPropTypes<T[K]> & Pick<ContextProcedures<T>, ContextProcedureNames.invalidate>
+	: AddContextPropTypes<T[K]> & Pick<ContextProcedures<undefined>, ContextProcedureNames.invalidate>
 } & {};
 
 type UseContext<T> = AddContextPropTypes<T> & Pick<ContextProcedures<undefined>, ContextProcedureNames.invalidate> & { [ContextProcedureNames.client]: T }
