@@ -15,14 +15,14 @@ import {
 	type QueryFilters
 } from '@tanstack/svelte-query';
 
-enum ProcedureNames {
-	query = 'useQuery',
-	infiniteQuery = 'useInfiniteQuery',
-	mutate = 'useMutation',
-	subscribe = 'useSubscription',
-	queryKey = 'getQueryKey',
-	context = 'useContext',
-}
+const ProcedureNames = {
+	query: 'useQuery',
+	infiniteQuery: 'useInfiniteQuery',
+	mutate: 'useMutation',
+	subscribe: 'useSubscription',
+	queryKey: 'getQueryKey',
+	context: 'useContext',
+} as const
 
 export type QueryType = 'query' | 'infinite' | 'any';
 
@@ -88,21 +88,21 @@ type AddQueryPropTypes<T, TError> = {
 	: AddQueryPropTypes<T[K], TError> & GetQueryKey
 } & {};
 
-enum ContextProcedureNames {
-	client = 'client',
-	fetch = 'fetch',
-	prefetch = 'prefetch',
-	fetchInfinite = 'fetchInfinite',
-	prefetchInfinite = 'prefetchInfinite',
-	invalidate = 'invalidate',
-	refetch = 'refetch',
-	reset = 'reset',
-	cancel = 'cancel',
-	setData = 'setData',
-	getData = 'getData',
-	setInfiniteData = 'setInfiniteData',
-	getInfiniteData = 'getInfiniteData',
-}
+const ContextProcedureNames = {
+	client: 'client',
+	fetch: 'fetch',
+	prefetch: 'prefetch',
+	fetchInfinite: 'fetchInfinite',
+	prefetchInfinite: 'prefetchInfinite',
+	invalidate: 'invalidate',
+	refetch: 'refetch',
+	reset: 'reset',
+	cancel: 'cancel',
+	setData: 'setData',
+	getData: 'getData',
+	setInfiniteData: 'setInfiniteData',
+	getInfiniteData: 'getInfiniteData',
+} as const
 
 type ContextProcedures<TInput> = {
 	[ContextProcedureNames.fetch](): unknown
@@ -122,10 +122,10 @@ type ContextProcedures<TInput> = {
 type AddContextPropTypes<T> = {
 	[K in keyof T as T[K] extends { mutate: any } | { subscribe: any } ? never : K]:
 	T[K] extends { query: any } ? ContextProcedures<Parameters<T[K]["query"]>[0]>
-	: AddContextPropTypes<T[K]> & Pick<ContextProcedures<undefined>, ContextProcedureNames.invalidate>
+	: AddContextPropTypes<T[K]> & Pick<ContextProcedures<undefined>, typeof ContextProcedureNames.invalidate>
 } & {};
 
-type UseContext<T> = AddContextPropTypes<T> & Pick<ContextProcedures<undefined>, ContextProcedureNames.invalidate> & { [ContextProcedureNames.client]: T }
+type UseContext<T> = AddContextPropTypes<T> & Pick<ContextProcedures<undefined>, typeof ContextProcedureNames.invalidate> & { [ContextProcedureNames.client]: T }
 
 function createUseContextProxy<TClient>(client: TClient) {
 	const queryClient = useQueryClient();
