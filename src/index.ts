@@ -105,18 +105,18 @@ const ContextProcedureNames = {
 } as const
 
 type ContextProcedures<TInput> = {
-	[ContextProcedureNames.fetch](): unknown
-	[ContextProcedureNames.prefetch](): unknown
-	[ContextProcedureNames.fetchInfinite](): unknown
-	[ContextProcedureNames.prefetchInfinite](): unknown
+	[ContextProcedureNames.fetch](): void
+	[ContextProcedureNames.prefetch](): void
+	[ContextProcedureNames.fetchInfinite](): void
+	[ContextProcedureNames.prefetchInfinite](): void
 	[ContextProcedureNames.invalidate](input?: TInput, filters?: QueryFilters): void
-	[ContextProcedureNames.refetch](): unknown
-	[ContextProcedureNames.reset](): unknown
-	[ContextProcedureNames.cancel](): unknown
-	[ContextProcedureNames.setData](): unknown
-	[ContextProcedureNames.getData](): unknown
-	[ContextProcedureNames.setInfiniteData](): unknown
-	[ContextProcedureNames.getInfiniteData](): unknown
+	[ContextProcedureNames.refetch](): void
+	[ContextProcedureNames.reset](): void
+	[ContextProcedureNames.cancel](): void
+	[ContextProcedureNames.setData](): void
+	[ContextProcedureNames.getData](): void
+	[ContextProcedureNames.setInfiniteData](): void
+	[ContextProcedureNames.getInfiniteData](): void
 } & {}
 
 type AddContextPropTypes<T> = {
