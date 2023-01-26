@@ -18,6 +18,7 @@ import {
 	InfiniteData,
 	RefetchQueryFilters,
 	RefetchOptions,
+	ResetOptions,
 } from '@tanstack/svelte-query';
 
 const ProcedureNames = {
@@ -116,7 +117,7 @@ type ContextProcedures<TInput = undefined, TOutput = undefined, TError = undefin
 	[ContextProcedureNames.prefetchInfinite](input: TInput, opts?: FetchInfiniteQueryOptions<TInput, TError, TOutput>): Promise<void>
 	[ContextProcedureNames.invalidate](input?: TInput, filters?: InvalidateQueryFilters): Promise<void>
 	[ContextProcedureNames.refetch](input?: TInput, filters?: RefetchQueryFilters, opts?: RefetchOptions): Promise<void>
-	[ContextProcedureNames.reset](): Promise<void>
+	[ContextProcedureNames.reset](input?: TInput, opts?: ResetOptions): Promise<void>
 	[ContextProcedureNames.cancel](): Promise<void>
 	[ContextProcedureNames.setData](): Promise<void>
 	[ContextProcedureNames.getData](): Promise<void>
@@ -182,6 +183,10 @@ function createUseContextProxy(client: any) {
 					...opts
 				);
 			} else if (utilName === ContextProcedureNames.reset) {
+				return queryClient.resetQueries(
+					getArrayQueryKey(this.path, input, 'any'),
+					...opts
+				)
 			}
 
 			// Just simulating the error gotten from tRPC for now.
