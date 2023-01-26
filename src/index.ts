@@ -12,7 +12,8 @@ import {
 	type CreateQueryOptions,
 	type CreateMutationOptions,
 	type CreateInfiniteQueryOptions,
-	type QueryFilters
+	type QueryFilters,
+	type FetchQueryOptions,
 } from '@tanstack/svelte-query';
 
 const ProcedureNames = {
@@ -104,32 +105,32 @@ const ContextProcedureNames = {
 	getInfiniteData: 'getInfiniteData',
 } as const
 
-type ContextProcedures<TInput> = {
-	[ContextProcedureNames.fetch](): void
-	[ContextProcedureNames.prefetch](): void
-	[ContextProcedureNames.fetchInfinite](): void
-	[ContextProcedureNames.prefetchInfinite](): void
-	[ContextProcedureNames.invalidate](input?: TInput, filters?: QueryFilters): void
-	[ContextProcedureNames.refetch](): void
-	[ContextProcedureNames.reset](): void
-	[ContextProcedureNames.cancel](): void
-	[ContextProcedureNames.setData](): void
-	[ContextProcedureNames.getData](): void
-	[ContextProcedureNames.setInfiniteData](): void
-	[ContextProcedureNames.getInfiniteData](): void
+type ContextProcedures<TInput = undefined, TOutput = Promise<void>, TError = undefined> = {
+	[ContextProcedureNames.fetch](input: TInput, opts?: FetchQueryOptions<TInput, TError, TOutput>): TOutput
+	[ContextProcedureNames.prefetch](): TOutput
+	[ContextProcedureNames.fetchInfinite](): TOutput
+	[ContextProcedureNames.prefetchInfinite](): TOutput
+	[ContextProcedureNames.invalidate](input?: TInput, filters?: QueryFilters): TOutput
+	[ContextProcedureNames.refetch](): TOutput
+	[ContextProcedureNames.reset](): TOutput
+	[ContextProcedureNames.cancel](): TOutput
+	[ContextProcedureNames.setData](): TOutput
+	[ContextProcedureNames.getData](): TOutput
+	[ContextProcedureNames.setInfiniteData](): TOutput
+	[ContextProcedureNames.getInfiniteData](): TOutput
 } & {}
 
-type AddContextPropTypes<T> = {
+type AddContextPropTypes<T, TError> = {
 	[K in keyof T as T[K] extends { mutate: any } | { subscribe: any } ? never : K]:
-	T[K] extends { query: any } ? ContextProcedures<Parameters<T[K]["query"]>[0]>
-	: AddContextPropTypes<T[K]> & Pick<ContextProcedures<undefined>, typeof ContextProcedureNames.invalidate>
+	T[K] extends { query: any } ? ContextProcedures<Parameters<T[K]["query"]>[0], ReturnType<T[K]['query']>, TError>
+	: AddContextPropTypes<T[K], TError> & Pick<ContextProcedures, typeof ContextProcedureNames.invalidate>
 } & {};
 
-type UseContext<T> = AddContextPropTypes<T> & Pick<ContextProcedures<undefined>, typeof ContextProcedureNames.invalidate> & { [ContextProcedureNames.client]: T }
+type UseContext<T, TError> = AddContextPropTypes<T, TError> & Pick<ContextProcedures, typeof ContextProcedureNames.invalidate> & { [ContextProcedureNames.client]: T }
 
-function createUseContextProxy<TClient>(client: TClient) {
+function createUseContextProxy(client: any) {
 	const queryClient = useQueryClient();
-	return new DeepProxy({} as UseContext<TClient>, {
+	return new DeepProxy({}, {
 		get(_target, key, _receiver) {
 			if (key === ContextProcedureNames.client) return client;
 
@@ -140,7 +141,7 @@ function createUseContextProxy<TClient>(client: TClient) {
 			const utilName = this.path.pop()
 
 			// TODO: should probably replace `reduce` with `for...of` for better performance
-			const target = [...this.path].reduce((client, value) => client[value], client as Record<string, any>)
+			const target = [...this.path].reduce((client, value) => client[value], client)
 			const [input, ...opts] = argList
 
 			if (utilName === ContextProcedureNames.invalidate) {
@@ -151,7 +152,7 @@ function createUseContextProxy<TClient>(client: TClient) {
 				return queryClient.fetchQuery({
 					...opts,
 					queryKey: getArrayQueryKey(this.path, input, 'query'),
-					queryFn: () => (target as any).query(input),
+					queryFn: () => target.query(input),
 				});
 			}
 
@@ -170,7 +171,7 @@ export function svelteQueryWrapper<TRouter extends AnyRouter>(
 		const client = trpc(init);
 		type Client = typeof client;
 
-		type ClientWithQuery = AddQueryPropTypes<Client, RouterError> & { useContext(): UseContext<Client>, useQueries: unknown }
+		type ClientWithQuery = AddQueryPropTypes<Client, RouterError> & { useContext(): UseContext<Client, RouterError>, useQueries: unknown }
 		return new DeepProxy({} as ClientWithQuery, {
 			get() {
 				return this.nest(() => { })
