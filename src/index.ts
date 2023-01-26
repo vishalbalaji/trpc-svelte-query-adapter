@@ -109,9 +109,9 @@ const ContextProcedureNames = {
 
 type ContextProcedures<TInput = undefined, TOutput = undefined, TError = undefined> = {
 	[ContextProcedureNames.fetch](input: TInput, opts?: FetchQueryOptions<TInput, TError, TOutput>): Promise<TOutput>
-	[ContextProcedureNames.prefetch](): Promise<void>
+	[ContextProcedureNames.prefetch](input: TInput, opts?: FetchQueryOptions<TInput, TError, TOutput>): Promise<void>
 	[ContextProcedureNames.fetchInfinite](input: TInput, opts?: FetchInfiniteQueryOptions<TInput, TError, TOutput>): Promise<InfiniteData<TOutput>>
-	[ContextProcedureNames.prefetchInfinite](): Promise<void>
+	[ContextProcedureNames.prefetchInfinite](input: TInput, opts?: FetchInfiniteQueryOptions<TInput, TError, TOutput>): Promise<void>
 	[ContextProcedureNames.invalidate](input?: TInput, filters?: InvalidateQueryFilters): Promise<void>
 	[ContextProcedureNames.refetch](): Promise<void>
 	[ContextProcedureNames.reset](): Promise<void>
@@ -158,6 +158,18 @@ function createUseContextProxy(client: any) {
 				});
 			} else if (utilName === ContextProcedureNames.fetchInfinite) {
 				return queryClient.fetchInfiniteQuery({
+					...opts,
+					queryKey: getArrayQueryKey(this.path, input, 'infinite'),
+					queryFn: () => target.query(input),
+				});
+			} else if (utilName === ContextProcedureNames.prefetch) { 
+				return queryClient.prefetchQuery({
+					...opts,
+					queryKey: getArrayQueryKey(this.path, input, 'query'),
+					queryFn: () => target.query(input),
+				});
+			} else if (utilName === ContextProcedureNames.prefetchInfinite) { 
+				return queryClient.prefetchInfiniteQuery({
 					...opts,
 					queryKey: getArrayQueryKey(this.path, input, 'infinite'),
 					queryFn: () => target.query(input),
