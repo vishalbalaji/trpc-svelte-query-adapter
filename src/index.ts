@@ -19,6 +19,7 @@ import {
 	RefetchQueryFilters,
 	RefetchOptions,
 	ResetOptions,
+    CancelOptions,
 } from '@tanstack/svelte-query';
 
 const ProcedureNames = {
@@ -118,7 +119,7 @@ type ContextProcedures<TInput = undefined, TOutput = undefined, TError = undefin
 	[ContextProcedureNames.invalidate](input?: TInput, filters?: InvalidateQueryFilters): Promise<void>
 	[ContextProcedureNames.refetch](input?: TInput, filters?: RefetchQueryFilters, opts?: RefetchOptions): Promise<void>
 	[ContextProcedureNames.reset](input?: TInput, opts?: ResetOptions): Promise<void>
-	[ContextProcedureNames.cancel](): Promise<void>
+	[ContextProcedureNames.cancel](input?: TInput, opts?: CancelOptions): Promise<void>
 	[ContextProcedureNames.setData](): Promise<void>
 	[ContextProcedureNames.getData](): Promise<void>
 	[ContextProcedureNames.setInfiniteData](): Promise<void>
@@ -184,6 +185,11 @@ function createUseContextProxy(client: any) {
 				);
 			} else if (utilName === ContextProcedureNames.reset) {
 				return queryClient.resetQueries(
+					getArrayQueryKey(this.path, input, 'any'),
+					...opts
+				)
+			} else if (utilName === ContextProcedureNames.cancel) {
+				return queryClient.cancelQueries(
 					getArrayQueryKey(this.path, input, 'any'),
 					...opts
 				)
