@@ -12,7 +12,7 @@ import {
 	type CreateQueryOptions,
 	type CreateMutationOptions,
 	type CreateInfiniteQueryOptions,
-	type QueryFilters,
+	type InvalidateQueryFilters,
 	type FetchQueryOptions,
 } from '@tanstack/svelte-query';
 
@@ -105,24 +105,24 @@ const ContextProcedureNames = {
 	getInfiniteData: 'getInfiniteData',
 } as const
 
-type ContextProcedures<TInput = undefined, TOutput = Promise<void>, TError = undefined> = {
-	[ContextProcedureNames.fetch](input: TInput, opts?: FetchQueryOptions<TInput, TError, TOutput>): TOutput
-	[ContextProcedureNames.prefetch](): TOutput
-	[ContextProcedureNames.fetchInfinite](): TOutput
-	[ContextProcedureNames.prefetchInfinite](): TOutput
-	[ContextProcedureNames.invalidate](input?: TInput, filters?: QueryFilters): TOutput
-	[ContextProcedureNames.refetch](): TOutput
-	[ContextProcedureNames.reset](): TOutput
-	[ContextProcedureNames.cancel](): TOutput
-	[ContextProcedureNames.setData](): TOutput
-	[ContextProcedureNames.getData](): TOutput
-	[ContextProcedureNames.setInfiniteData](): TOutput
-	[ContextProcedureNames.getInfiniteData](): TOutput
+type ContextProcedures<TInput = undefined, TOutput = undefined, TError = undefined> = {
+	[ContextProcedureNames.fetch](input: TInput, opts?: FetchQueryOptions<TInput, TError, TOutput>): Promise<TOutput>
+	[ContextProcedureNames.prefetch](): Promise<void>
+	[ContextProcedureNames.fetchInfinite](input: TInput, opts?: FetchInfiniteQueryOptions<TInput, TError, TOutput>): Promise<InfiniteData<TOutput>>
+	[ContextProcedureNames.prefetchInfinite](): Promise<void>
+	[ContextProcedureNames.invalidate](input?: TInput, filters?: InvalidateQueryFilters): Promise<void>
+	[ContextProcedureNames.refetch](): Promise<void>
+	[ContextProcedureNames.reset](): Promise<void>
+	[ContextProcedureNames.cancel](): Promise<void>
+	[ContextProcedureNames.setData](): Promise<void>
+	[ContextProcedureNames.getData](): Promise<void>
+	[ContextProcedureNames.setInfiniteData](): Promise<void>
+	[ContextProcedureNames.getInfiniteData](): Promise<void>
 } & {}
 
 type AddContextPropTypes<TClient, TError> = {
 	[K in keyof TClient as TClient[K] extends { mutate: any } | { subscribe: any } ? never : K]:
-	TClient[K] extends { query: any } ? ContextProcedures<Parameters<TClient[K]['query']>[0], ReturnType<TClient[K]['query']>, TError>
+	TClient[K] extends { query: any } ? ContextProcedures<Parameters<TClient[K]['query']>[0], Awaited<ReturnType<TClient[K]['query']>>, TError>
 	: AddContextPropTypes<TClient[K], TError> & Pick<ContextProcedures, typeof ContextProcedureNames.invalidate>
 } & {};
 
