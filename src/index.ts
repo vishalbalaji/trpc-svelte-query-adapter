@@ -81,12 +81,12 @@ type UseMutationProcedure<TInput, TOutput, TError> = {
 
 type UseSubscriptionProcedure<TInput, TOutput, TError> = never
 
-type AddQueryPropTypes<T, TError> = {
-	[K in keyof T]:
-	T[K] extends { query: any } ? QueryProcedures<Parameters<T[K]['query']>[0], ReturnType<T[K]['query']>, TError>
-	: T[K] extends { mutate: any } ? UseMutationProcedure<Parameters<T[K]['mutate']>[0], ReturnType<T[K]['mutate']>, TError>
-	: T[K] extends { subscribe: any } ? UseSubscriptionProcedure<Parameters<T[K]['subscribe']>[0], ReturnType<T[K]['subscribe']>, TError>
-	: AddQueryPropTypes<T[K], TError> & GetQueryKey
+type AddQueryPropTypes<TClient, TError> = {
+	[K in keyof TClient]:
+	TClient[K] extends { query: any } ? QueryProcedures<Parameters<TClient[K]['query']>[0], ReturnType<TClient[K]['query']>, TError>
+	: TClient[K] extends { mutate: any } ? UseMutationProcedure<Parameters<TClient[K]['mutate']>[0], ReturnType<TClient[K]['mutate']>, TError>
+	: TClient[K] extends { subscribe: any } ? UseSubscriptionProcedure<Parameters<TClient[K]['subscribe']>[0], ReturnType<TClient[K]['subscribe']>, TError>
+	: AddQueryPropTypes<TClient[K], TError> & GetQueryKey
 } & {};
 
 const ContextProcedureNames = {
@@ -120,10 +120,10 @@ type ContextProcedures<TInput = undefined, TOutput = Promise<void>, TError = und
 	[ContextProcedureNames.getInfiniteData](): TOutput
 } & {}
 
-type AddContextPropTypes<T, TError> = {
-	[K in keyof T as T[K] extends { mutate: any } | { subscribe: any } ? never : K]:
-	T[K] extends { query: any } ? ContextProcedures<Parameters<T[K]["query"]>[0], ReturnType<T[K]['query']>, TError>
-	: AddContextPropTypes<T[K], TError> & Pick<ContextProcedures, typeof ContextProcedureNames.invalidate>
+type AddContextPropTypes<TClient, TError> = {
+	[K in keyof TClient as TClient[K] extends { mutate: any } | { subscribe: any } ? never : K]:
+	TClient[K] extends { query: any } ? ContextProcedures<Parameters<TClient[K]['query']>[0], ReturnType<TClient[K]['query']>, TError>
+	: AddContextPropTypes<TClient[K], TError> & Pick<ContextProcedures, typeof ContextProcedureNames.invalidate>
 } & {};
 
 type UseContext<T, TError> = AddContextPropTypes<T, TError> & Pick<ContextProcedures, typeof ContextProcedureNames.invalidate> & { [ContextProcedureNames.client]: T }
