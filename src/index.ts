@@ -115,7 +115,7 @@ type ContextProcedures<TInput = undefined, TOutput = undefined, TError = undefin
 	[ContextProcedureNames.fetchInfinite](input: TInput, opts?: FetchInfiniteQueryOptions<TInput, TError, TOutput>): Promise<InfiniteData<TOutput>>
 	[ContextProcedureNames.prefetchInfinite](input: TInput, opts?: FetchInfiniteQueryOptions<TInput, TError, TOutput>): Promise<void>
 	[ContextProcedureNames.invalidate](input?: TInput, filters?: InvalidateQueryFilters): Promise<void>
-	[ContextProcedureNames.refetch](): Promise<void>
+	[ContextProcedureNames.refetch](input?: TInput, filters?: RefetchQueryFilters, opts?: RefetchOptions): Promise<void>
 	[ContextProcedureNames.reset](): Promise<void>
 	[ContextProcedureNames.cancel](): Promise<void>
 	[ContextProcedureNames.setData](): Promise<void>
@@ -164,18 +164,24 @@ function createUseContextProxy(client: any) {
 					queryKey: getArrayQueryKey(this.path, input, 'infinite'),
 					queryFn: () => target.query(input),
 				});
-			} else if (utilName === ContextProcedureNames.prefetch) { 
+			} else if (utilName === ContextProcedureNames.prefetch) {
 				return queryClient.prefetchQuery({
 					...opts,
 					queryKey: getArrayQueryKey(this.path, input, 'query'),
 					queryFn: () => target.query(input),
 				});
-			} else if (utilName === ContextProcedureNames.prefetchInfinite) { 
+			} else if (utilName === ContextProcedureNames.prefetchInfinite) {
 				return queryClient.prefetchInfiniteQuery({
 					...opts,
 					queryKey: getArrayQueryKey(this.path, input, 'infinite'),
 					queryFn: () => target.query(input),
 				});
+			} else if (utilName === ContextProcedureNames.refetch) {
+				return queryClient.refetchQueries(
+					getArrayQueryKey(this.path, input, 'any'),
+					...opts
+				);
+			} else if (utilName === ContextProcedureNames.reset) {
 			}
 
 			// Just simulating the error gotten from tRPC for now.
