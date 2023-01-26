@@ -9,13 +9,15 @@ import {
 	createQuery,
 	createMutation,
 	createInfiniteQuery,
-	type CreateQueryOptions,
-	type CreateMutationOptions,
-	type CreateInfiniteQueryOptions,
-	type InvalidateQueryFilters,
-	type FetchQueryOptions,
-	type FetchInfiniteQueryOptions,
-	type InfiniteData,
+	CreateQueryOptions,
+	CreateMutationOptions,
+	CreateInfiniteQueryOptions,
+	InvalidateQueryFilters,
+	FetchQueryOptions,
+	FetchInfiniteQueryOptions,
+	InfiniteData,
+	RefetchQueryFilters,
+	RefetchOptions,
 } from '@tanstack/svelte-query';
 
 const ProcedureNames = {
