@@ -141,14 +141,21 @@ function createUseContextProxy<TClient>(client: TClient) {
 
 			// TODO: should probably replace `reduce` with `for...of` for better performance
 			const target = [...this.path].reduce((client, value) => client[value], client as Record<string, any>)
-			const [input, ...args] = argList
+			const [input, ...opts] = argList
 
 			if (utilName === ContextProcedureNames.invalidate) {
-				const filters = args[0]
+				const filters = opts[0]
 
 				return queryClient.invalidateQueries({ ...filters, queryKey: getArrayQueryKey(this.path, input, 'any') });
+			} else if (utilName === ContextProcedureNames.fetch) {
+				return queryClient.fetchQuery({
+					...opts,
+					queryKey: getArrayQueryKey(this.path, input, 'query'),
+					queryFn: () => (target as any).query(input),
+				});
 			}
 
+			// Just simulating the error gotten from tRPC for now.
 			throw new TypeError('contextMap[utilName] is not a function');
 		}
 	})
@@ -174,26 +181,34 @@ export function svelteQueryWrapper<TRouter extends AnyRouter>(
 
 				// TODO: should probably replace `reduce` with `for...of` for better performance
 				const target = [...this.path].reduce((client, value) => client[value], client as Record<string, any>)
-				const [input, ...args] = argList
+				const [input, ...opts] = argList
 
 				if (procedure === ProcedureNames.query) {
-					return createQuery(
-						getArrayQueryKey(this.path, input, 'query'), () => (target['query'] as (args: any[]) => any)(input), ...args
-					)
+					return createQuery({
+						...opts,
+						queryKey: getArrayQueryKey(this.path, input, 'query'),
+						queryFn: () => (target as any).query(input),
+					})
 				} else if (procedure === ProcedureNames.infiniteQuery) {
-					return createInfiniteQuery(
-						getArrayQueryKey(this.path, input, 'infinite'), () => (target['query'] as (args: any[]) => any)(input), ...args
-					)
+					return createInfiniteQuery({
+						...opts,
+						queryKey: getArrayQueryKey(this.path, input, 'infinite'),
+						queryFn: () => (target as any).query(input),
+					})
 				} else if (procedure === ProcedureNames.mutate) {
-					return createMutation(this.path, () => (target['mutate'] as (args: any[]) => any)(input), ...args)
+					return createMutation({
+						...opts,
+						mutationKey: this.path,
+						mutationFn: () => (target as any).mutate(input),
+					})
 				} else if (procedure === ProcedureNames.queryKey) {
-					// NOTE: should probably handle for procedures like `useMutation`
-					// that don't have `getQueryKey`, but it is not handled
-					// in `@trpc/react-query` either.
+					// NOTE: should probably throw error for procedures
+					// like `useMutation` that don't have `getQueryKey`,
+					// but it is not handled in `@trpc/react-query` either.
 					return getArrayQueryKey(
 						this.path,
 						input,
-						...args as [any]
+						...opts as [any]
 					)
 				} else if (procedure === ProcedureNames.context) {
 					return createUseContextProxy(client)
