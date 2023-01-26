@@ -14,6 +14,8 @@ import {
 	type CreateInfiniteQueryOptions,
 	type InvalidateQueryFilters,
 	type FetchQueryOptions,
+	type FetchInfiniteQueryOptions,
+	type InfiniteData,
 } from '@tanstack/svelte-query';
 
 const ProcedureNames = {
@@ -152,6 +154,12 @@ function createUseContextProxy(client: any) {
 				return queryClient.fetchQuery({
 					...opts,
 					queryKey: getArrayQueryKey(this.path, input, 'query'),
+					queryFn: () => target.query(input),
+				});
+			} else if (utilName === ContextProcedureNames.fetchInfinite) {
+				return queryClient.fetchInfiniteQuery({
+					...opts,
+					queryKey: getArrayQueryKey(this.path, input, 'infinite'),
 					queryFn: () => target.query(input),
 				});
 			}
