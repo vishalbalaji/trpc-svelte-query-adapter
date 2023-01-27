@@ -19,9 +19,9 @@ import {
 	RefetchQueryFilters,
 	RefetchOptions,
 	ResetOptions,
-    CancelOptions,
-    Updater,
-    SetDataOptions,
+	CancelOptions,
+	Updater,
+	SetDataOptions,
 } from '@tanstack/svelte-query';
 
 const ProcedureNames = {
@@ -80,6 +80,7 @@ type UseInfiniteQueryProcedure<TInput, TOutput, TError> = TInput extends { curso
 			=> ReturnType<typeof createInfiniteQuery<Awaited<TOutput>, TError>>
 	}
 	: {}
+
 type QueryProcedures<TInput, TOutput, TError> = UseQueryProcedure<TInput, TOutput, TError> & UseInfiniteQueryProcedure<TInput, TOutput, TError> & GetQueryKey<TInput>
 
 type UseMutationProcedure<TInput, TOutput, TError> = {
@@ -95,7 +96,7 @@ type AddQueryPropTypes<TClient, TError> = {
 	: TClient[K] extends { mutate: any } ? UseMutationProcedure<Parameters<TClient[K]['mutate']>[0], ReturnType<TClient[K]['mutate']>, TError>
 	: TClient[K] extends { subscribe: any } ? UseSubscriptionProcedure<Parameters<TClient[K]['subscribe']>[0], ReturnType<TClient[K]['subscribe']>, TError>
 	: AddQueryPropTypes<TClient[K], TError> & GetQueryKey
-} & {};
+};
 
 const ContextProcedureNames = {
 	client: 'client',
@@ -126,16 +127,25 @@ type ContextProcedures<TInput = undefined, TOutput = undefined, TError = undefin
 	[ContextProcedureNames.getData](): Promise<void>
 	[ContextProcedureNames.setInfiniteData](): Promise<void>
 	[ContextProcedureNames.getInfiniteData](): Promise<void>
-} & {}
+}
 
-// BUG: filtering the keys for only queries breaks 'goto definition'.
+// CREDIT: https://stackoverflow.com/questions/63447660
+type WithNevers<T, V> = { [K in keyof T]:
+	Exclude<T[K], undefined> extends V ? never
+	: T[K] extends Record<string, unknown> ? Without<T[K], V>
+	: T[K]
+}
+type Without<T, V, I = WithNevers<T, V>> = Pick<I, { [K in keyof I]: I[K] extends never ? never : K }[keyof I]>
+
 type AddContextPropTypes<TClient, TError> = {
-	[K in keyof TClient as TClient[K] extends { mutate: any } | { subscribe: any } ? never : K]:
+	[K in keyof TClient]:
 	TClient[K] extends { query: any } ? ContextProcedures<Parameters<TClient[K]['query']>[0], Awaited<ReturnType<TClient[K]['query']>>, TError>
 	: AddContextPropTypes<TClient[K], TError> & Pick<ContextProcedures, typeof ContextProcedureNames.invalidate>
-} & {};
+};
 
-type UseContext<T, TError> = AddContextPropTypes<T, TError> & Pick<ContextProcedures, typeof ContextProcedureNames.invalidate> & { [ContextProcedureNames.client]: T }
+type UseContext<T, TError> = AddContextPropTypes<Without<T, { mutate: any } | { subscribe: any }>, TError>
+	& Pick<ContextProcedures, typeof ContextProcedureNames.invalidate>
+	& { [ContextProcedureNames.client]: T }
 
 function createUseContextProxy(client: any) {
 	const queryClient = useQueryClient();
