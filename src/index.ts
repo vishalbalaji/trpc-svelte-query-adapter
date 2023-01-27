@@ -124,9 +124,9 @@ type ContextProcedures<TInput = undefined, TOutput = undefined, TError = undefin
 	[ContextProcedureNames.reset](input?: TInput, opts?: ResetOptions): Promise<void>
 	[ContextProcedureNames.cancel](input?: TInput, opts?: CancelOptions): Promise<void>
 	[ContextProcedureNames.setData](input: TInput, updater: Updater<TOutput | undefined, TOutput | undefined>, opts?: SetDataOptions): void
-	[ContextProcedureNames.getData](): Promise<void>
-	[ContextProcedureNames.setInfiniteData](): Promise<void>
-	[ContextProcedureNames.getInfiniteData](): Promise<void>
+	[ContextProcedureNames.getData](input?: TInput): TOutput | undefined
+	[ContextProcedureNames.setInfiniteData](input: TInput, updater: Updater<InfiniteData<TOutput> | undefined, InfiniteData<TOutput> | undefined>, opts?: SetDataOptions): void
+	[ContextProcedureNames.getInfiniteData](input?: TInput): InfiniteData<TOutput> | undefined
 }
 
 // CREDIT: https://stackoverflow.com/questions/63447660
@@ -210,6 +210,21 @@ function createUseContextProxy(client: any) {
 				return queryClient.setQueryData(
 					getArrayQueryKey(this.path, input, 'query'),
 					...opts as [any]
+				)
+			} else if (utilName === ContextProcedureNames.getData) {
+				return queryClient.getQueryData(
+					getArrayQueryKey(this.path, input, 'query'),
+					...opts
+				)
+			} else if (utilName === ContextProcedureNames.setInfiniteData) {
+				return queryClient.setQueryData(
+					getArrayQueryKey(this.path, input, 'infinite'),
+					...opts as [any]
+				)
+			} else if (utilName === ContextProcedureNames.getInfiniteData) {
+				return queryClient.getQueryData(
+					getArrayQueryKey(this.path, input, 'infinite'),
+					...opts
 				)
 			}
 
