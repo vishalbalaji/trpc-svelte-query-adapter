@@ -129,7 +129,7 @@ type ContextProcedures<TInput = undefined, TOutput = undefined, TError = undefin
 	[ContextProcedureNames.getInfiniteData](input?: TInput): InfiniteData<TOutput> | undefined
 }
 
-// CREDIT: https://stackoverflow.com/questions/63447660
+// CREDIT: https://stackoverflow.com/a/63448246
 type WithNevers<T, V> = { [K in keyof T]:
 	Exclude<T[K], undefined> extends V ? never
 	: T[K] extends Record<string, unknown> ? Without<T[K], V>
@@ -228,7 +228,7 @@ function createUseContextProxy(client: any) {
 				)
 			}
 
-			// Just simulating the error gotten from tRPC for now.
+			// Just simulating the error thrown by `@trpc/react-query` for now.
 			throw new TypeError('contextMap[utilName] is not a function');
 		}
 	})
