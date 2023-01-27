@@ -20,6 +20,8 @@ import {
 	RefetchOptions,
 	ResetOptions,
     CancelOptions,
+    Updater,
+    SetDataOptions,
 } from '@tanstack/svelte-query';
 
 const ProcedureNames = {
@@ -120,12 +122,13 @@ type ContextProcedures<TInput = undefined, TOutput = undefined, TError = undefin
 	[ContextProcedureNames.refetch](input?: TInput, filters?: RefetchQueryFilters, opts?: RefetchOptions): Promise<void>
 	[ContextProcedureNames.reset](input?: TInput, opts?: ResetOptions): Promise<void>
 	[ContextProcedureNames.cancel](input?: TInput, opts?: CancelOptions): Promise<void>
-	[ContextProcedureNames.setData](): Promise<void>
+	[ContextProcedureNames.setData](input: TInput, updater: Updater<TOutput | undefined, TOutput | undefined>, opts?: SetDataOptions): void
 	[ContextProcedureNames.getData](): Promise<void>
 	[ContextProcedureNames.setInfiniteData](): Promise<void>
 	[ContextProcedureNames.getInfiniteData](): Promise<void>
 } & {}
 
+// BUG: filtering the keys for only queries breaks 'goto definition'.
 type AddContextPropTypes<TClient, TError> = {
 	[K in keyof TClient as TClient[K] extends { mutate: any } | { subscribe: any } ? never : K]:
 	TClient[K] extends { query: any } ? ContextProcedures<Parameters<TClient[K]['query']>[0], Awaited<ReturnType<TClient[K]['query']>>, TError>
@@ -147,7 +150,7 @@ function createUseContextProxy(client: any) {
 			const utilName = this.path.pop()
 
 			// TODO: should probably replace `reduce` with `for...of` for better performance
-			const target = [...this.path].reduce((client, value) => client[value], client)
+			const target = [...this.path].reduce((client, value) => client[value], client) as any
 			const [input, ...opts] = argList
 
 			if (utilName === ContextProcedureNames.invalidate) {
@@ -192,6 +195,11 @@ function createUseContextProxy(client: any) {
 				return queryClient.cancelQueries(
 					getArrayQueryKey(this.path, input, 'any'),
 					...opts
+				)
+			} else if (utilName === ContextProcedureNames.setData) {
+				return queryClient.setQueryData(
+					getArrayQueryKey(this.path, input, 'query'),
+					...opts as [any]
 				)
 			}
 
