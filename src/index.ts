@@ -138,6 +138,7 @@ type WithNevers<T, V> = { [K in keyof T]:
 	: T[K]
 }
 type Without<T, V, I = WithNevers<T, V>> = Pick<I, { [K in keyof I]: I[K] extends never ? never : K }[keyof I]>
+type OnlyQueries<TClient> = Without<TClient, { mutate: any } | { subscribe: any }>
 
 type AddContextPropTypes<TClient, TError> = {
 	[K in keyof TClient]:
@@ -258,7 +259,7 @@ type QueriesResults<
 	};
 
 type UseQueries<TClient, TError> = <TOpts extends CreateQueryOptionsForUseQueries<any, any>[]>(
-	queriesCallback: (t: UseQueriesRecord<TClient, TError>) => readonly [...TOpts],
+	queriesCallback: (t: UseQueriesRecord<OnlyQueries<TClient>, TError>) => readonly [...TOpts],
 	context?: CreateQueryOptions['context']
 ) => QueriesResults<TOpts>
 
