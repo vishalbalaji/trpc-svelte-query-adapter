@@ -25,19 +25,25 @@ import {
 	SetDataOptions,
 } from '@tanstack/svelte-query';
 
-const ProcedureNames = {
-	query: 'useQuery',
-	infiniteQuery: 'useInfiniteQuery',
-	mutate: 'useMutation',
-	subscribe: 'useSubscription',
-	queryKey: 'getQueryKey',
-	context: 'useContext',
-	queries: 'useQueries',
-} as const
 
-export type QueryType = 'query' | 'infinite' | 'any';
+// CREDIT: https://stackoverflow.com/a/63448246
+type WithNevers<T, V> = { [K in keyof T]:
+	Exclude<T[K], undefined> extends V ? never
+	: T[K] extends Record<string, unknown> ? Without<T[K], V>
+	: T[K]
+}
+type Without<T, V, I = WithNevers<T, V>> = Pick<I, { [K in keyof I]: I[K] extends never ? never : K }[keyof I]>
 
-export type QueryKey = [
+type HasQuery = { query: any }
+type HasMutate = { mutate: any }
+type HasSubscribe = { subscribe: any }
+type OnlyQueries<TClient> = Without<TClient, HasMutate | HasSubscribe>
+
+
+// getQueryKey
+type QueryType = 'query' | 'infinite' | 'any';
+
+type QueryKey = [
 	string[],
 	{ input?: unknown; type?: Exclude<QueryType, 'any'> }?,
 ];
@@ -72,34 +78,8 @@ type GetQueryKey<TInput = undefined> = {
 	: (input: TInput, type?: QueryType) => QueryKey
 }
 
-type UseQueryProcedure<TInput, TOutput, TError> = {
-	[ProcedureNames.query]: (input: TInput, opts?: CreateQueryOptions<TOutput, TError>)
-		=> ReturnType<typeof createQuery<Awaited<TOutput>, TError>>
-}
-type UseInfiniteQueryProcedure<TInput, TOutput, TError> = TInput extends { cursor?: any }
-	? {
-		[ProcedureNames.infiniteQuery]: (input: Omit<TInput, 'cursor'>, opts?: CreateInfiniteQueryOptions<TOutput, TError>)
-			=> ReturnType<typeof createInfiniteQuery<Awaited<TOutput>, TError>>
-	}
-	: {}
 
-type QueryProcedures<TInput, TOutput, TError> = UseQueryProcedure<TInput, TOutput, TError> & UseInfiniteQueryProcedure<TInput, TOutput, TError> & GetQueryKey<TInput>
-
-type UseMutationProcedure<TInput, TOutput, TError> = {
-	[ProcedureNames.mutate]: (input: TInput, opts?: CreateMutationOptions<TInput, TError>)
-		=> ReturnType<typeof createMutation<Awaited<TOutput>, TError>>
-}
-
-type UseSubscriptionProcedure<TInput, TOutput, TError> = never
-
-type AddQueryPropTypes<TClient, TError> = {
-	[K in keyof TClient]:
-	TClient[K] extends { query: any } ? QueryProcedures<Parameters<TClient[K]['query']>[0], ReturnType<TClient[K]['query']>, TError>
-	: TClient[K] extends { mutate: any } ? UseMutationProcedure<Parameters<TClient[K]['mutate']>[0], ReturnType<TClient[K]['mutate']>, TError>
-	: TClient[K] extends { subscribe: any } ? UseSubscriptionProcedure<Parameters<TClient[K]['subscribe']>[0], ReturnType<TClient[K]['subscribe']>, TError>
-	: AddQueryPropTypes<TClient[K], TError> & GetQueryKey
-};
-
+// getContext
 const ContextProcedureNames = {
 	client: 'client',
 	fetch: 'fetch',
@@ -131,25 +111,87 @@ type ContextProcedures<TInput = undefined, TOutput = undefined, TError = undefin
 	[ContextProcedureNames.getInfiniteData](input?: TInput): InfiniteData<TOutput> | undefined
 }
 
-// CREDIT: https://stackoverflow.com/a/63448246
-type WithNevers<T, V> = { [K in keyof T]:
-	Exclude<T[K], undefined> extends V ? never
-	: T[K] extends Record<string, unknown> ? Without<T[K], V>
-	: T[K]
-}
-type Without<T, V, I = WithNevers<T, V>> = Pick<I, { [K in keyof I]: I[K] extends never ? never : K }[keyof I]>
-type OnlyQueries<TClient> = Without<TClient, { mutate: any } | { subscribe: any }>
-
 type AddContextPropTypes<TClient, TError> = {
 	[K in keyof TClient]:
-	TClient[K] extends { query: any } ? ContextProcedures<Parameters<TClient[K]['query']>[0], Awaited<ReturnType<TClient[K]['query']>>, TError>
+	TClient[K] extends HasQuery ? ContextProcedures<Parameters<TClient[K]['query']>[0], Awaited<ReturnType<TClient[K]['query']>>, TError>
 	: AddContextPropTypes<TClient[K], TError> & Pick<ContextProcedures, typeof ContextProcedureNames.invalidate>
 };
 
-type UseContext<T, TError> = AddContextPropTypes<Without<T, { mutate: any } | { subscribe: any }>, TError>
+type UseContext<TClient, TError> = AddContextPropTypes<OnlyQueries<TClient>, TError>
 	& Pick<ContextProcedures, typeof ContextProcedureNames.invalidate>
-	& { [ContextProcedureNames.client]: T }
+	& { [ContextProcedureNames.client]: TClient }
 
+
+// useQueries
+type CreateQueryOptionsForUseQueries<TInput, TError> =
+	Omit<CreateQueryOptions<TInput, TError>, 'context'>
+
+type UseQueriesRecord<TClient, TError> = { [K in keyof TClient]:
+	TClient[K] extends HasQuery
+	? (input: Parameters<TClient[K]['query']>[0], opts?: CreateQueryOptionsForUseQueries<Awaited<ReturnType<TClient[K]['query']>>, TError>)
+		=> CreateQueryOptionsForUseQueries<Awaited<ReturnType<TClient[K]['query']>>, TError>
+	: UseQueriesRecord<TClient[K], TError>
+}
+
+type QueriesResults<
+	TQueriesOptions extends CreateQueryOptionsForUseQueries<any, any>[],
+> = {
+		[TKey in keyof TQueriesOptions]: TQueriesOptions[TKey] extends CreateQueryOptionsForUseQueries<
+			infer TQueryFnData,
+			infer TError
+		>
+		? ReturnType<typeof createQuery<TQueryFnData, TError>>
+		: never;
+	};
+
+type UseQueries<TClient, TError> = <TOpts extends CreateQueryOptionsForUseQueries<any, any>[]>(
+	queriesCallback: (t: UseQueriesRecord<OnlyQueries<TClient>, TError>) => readonly [...TOpts],
+	context?: CreateQueryOptions['context']
+) => QueriesResults<TOpts>
+
+
+// Procedures
+const ProcedureNames = {
+	query: 'useQuery',
+	infiniteQuery: 'useInfiniteQuery',
+	mutate: 'useMutation',
+	subscribe: 'useSubscription',
+	queryKey: 'getQueryKey',
+	context: 'useContext',
+	queries: 'useQueries',
+} as const
+
+type UseQueryProcedure<TInput, TOutput, TError> = {
+	[ProcedureNames.query]: (input: TInput, opts?: CreateQueryOptions<TOutput, TError>)
+		=> ReturnType<typeof createQuery<Awaited<TOutput>, TError>>
+}
+
+type UseInfiniteQueryProcedure<TInput, TOutput, TError> = TInput extends { cursor?: any }
+	? {
+		[ProcedureNames.infiniteQuery]: (input: Omit<TInput, 'cursor'>, opts?: CreateInfiniteQueryOptions<TOutput, TError>)
+			=> ReturnType<typeof createInfiniteQuery<Awaited<TOutput>, TError>>
+	}
+	: {}
+
+type QueryProcedures<TInput, TOutput, TError> = UseQueryProcedure<TInput, TOutput, TError> & UseInfiniteQueryProcedure<TInput, TOutput, TError> & GetQueryKey<TInput>
+
+type UseMutationProcedure<TInput, TOutput, TError> = {
+	[ProcedureNames.mutate]: (input: TInput, opts?: CreateMutationOptions<TInput, TError>)
+		=> ReturnType<typeof createMutation<Awaited<TOutput>, TError>>
+}
+
+type UseSubscriptionProcedure<TInput, TOutput, TError> = never
+
+type AddQueryPropTypes<TClient, TError> = {
+	[K in keyof TClient]:
+	TClient[K] extends HasQuery ? QueryProcedures<Parameters<TClient[K]['query']>[0], ReturnType<TClient[K]['query']>, TError>
+	: TClient[K] extends HasMutate ? UseMutationProcedure<Parameters<TClient[K]['mutate']>[0], ReturnType<TClient[K]['mutate']>, TError>
+	: TClient[K] extends HasSubscribe ? UseSubscriptionProcedure<Parameters<TClient[K]['subscribe']>[0], ReturnType<TClient[K]['subscribe']>, TError>
+	: AddQueryPropTypes<TClient[K], TError> & GetQueryKey
+};
+
+
+// Implementation
 function createUseContextProxy(client: any) {
 	const queryClient = useQueryClient();
 	return new DeepProxy({}, {
@@ -236,32 +278,6 @@ function createUseContextProxy(client: any) {
 		}
 	})
 }
-
-type CreateQueryOptionsForUseQueries<TInput, TError> =
-	Omit<CreateQueryOptions<TInput, TError>, 'context'>
-
-type UseQueriesRecord<TClient, TError> = { [K in keyof TClient]:
-	TClient[K] extends { query: any }
-	? (input: Parameters<TClient[K]['query']>[0], opts?: CreateQueryOptionsForUseQueries<Awaited<ReturnType<TClient[K]['query']>>, TError>)
-		=> CreateQueryOptionsForUseQueries<Awaited<ReturnType<TClient[K]['query']>>, TError>
-	: UseQueriesRecord<TClient[K], TError>
-}
-
-type QueriesResults<
-	TQueriesOptions extends CreateQueryOptionsForUseQueries<any, any>[],
-> = {
-		[TKey in keyof TQueriesOptions]: TQueriesOptions[TKey] extends CreateQueryOptionsForUseQueries<
-			infer TQueryFnData,
-			infer TError
-		>
-		? ReturnType<typeof createQuery<TQueryFnData, TError>>
-		: never;
-	};
-
-type UseQueries<TClient, TError> = <TOpts extends CreateQueryOptionsForUseQueries<any, any>[]>(
-	queriesCallback: (t: UseQueriesRecord<OnlyQueries<TClient>, TError>) => readonly [...TOpts],
-	context?: CreateQueryOptions['context']
-) => QueriesResults<TOpts>
 
 export function svelteQueryWrapper<TRouter extends AnyRouter>(
 	trpc: (init?: TRPCClientInit) => ReturnType<typeof createTRPCClient<TRouter>>
