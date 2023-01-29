@@ -9,6 +9,7 @@ import {
 	createQuery,
 	createMutation,
 	createInfiniteQuery,
+	createQueries,
 	CreateQueryOptions,
 	CreateMutationOptions,
 	CreateInfiniteQueryOptions,
@@ -31,6 +32,7 @@ const ProcedureNames = {
 	subscribe: 'useSubscription',
 	queryKey: 'getQueryKey',
 	context: 'useContext',
+	queries: 'useQueries',
 } as const
 
 export type QueryType = 'query' | 'infinite' | 'any';
@@ -234,6 +236,32 @@ function createUseContextProxy(client: any) {
 	})
 }
 
+type CreateQueryOptionsForUseQueries<TInput, TError> =
+	Omit<CreateQueryOptions<TInput, TError>, 'context'>
+
+type UseQueriesRecord<TClient, TError> = { [K in keyof TClient]:
+	TClient[K] extends { query: any }
+	? (input: Parameters<TClient[K]['query']>[0], opts?: CreateQueryOptionsForUseQueries<Awaited<ReturnType<TClient[K]['query']>>, TError>)
+		=> CreateQueryOptionsForUseQueries<Awaited<ReturnType<TClient[K]['query']>>, TError>
+	: UseQueriesRecord<TClient[K], TError>
+}
+
+type QueriesResults<
+	TQueriesOptions extends CreateQueryOptionsForUseQueries<any, any>[],
+> = {
+		[TKey in keyof TQueriesOptions]: TQueriesOptions[TKey] extends CreateQueryOptionsForUseQueries<
+			infer TQueryFnData,
+			infer TError
+		>
+		? ReturnType<typeof createQuery<TQueryFnData, TError>>
+		: never;
+	};
+
+type UseQueries<TClient, TError> = <TOpts extends CreateQueryOptionsForUseQueries<any, any>[]>(
+	queriesCallback: (t: UseQueriesRecord<TClient, TError>) => readonly [...TOpts],
+	context?: CreateQueryOptions['context']
+) => QueriesResults<TOpts>
+
 export function svelteQueryWrapper<TRouter extends AnyRouter>(
 	trpc: (init?: TRPCClientInit) => ReturnType<typeof createTRPCClient<TRouter>>
 ) {
@@ -243,7 +271,11 @@ export function svelteQueryWrapper<TRouter extends AnyRouter>(
 		const client = trpc(init);
 		type Client = typeof client;
 
-		type ClientWithQuery = AddQueryPropTypes<Client, RouterError> & { useContext(): UseContext<Client, RouterError>, useQueries: unknown }
+		type ClientWithQuery = AddQueryPropTypes<Client, RouterError> & {
+			useContext(): UseContext<Client, RouterError>,
+			useQueries: UseQueries<Client, RouterError>
+		}
+
 		return new DeepProxy({} as ClientWithQuery, {
 			get() {
 				return this.nest(() => { })
@@ -283,6 +315,8 @@ export function svelteQueryWrapper<TRouter extends AnyRouter>(
 						input,
 						...opts as [any]
 					)
+				} else if (procedure === ProcedureNames.queries) {
+					if (this.path.length === 0) throw new Error('`useQueries` unimplemented')
 				} else if (procedure === ProcedureNames.context) {
 					return createUseContextProxy(client)
 				}
