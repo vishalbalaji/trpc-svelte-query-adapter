@@ -1,33 +1,33 @@
 lockfileVersion: 5.4
 
 specifiers:
-  '@tanstack/svelte-query': ^4.22.1
-  '@trpc/client': ^10.8.1
-  '@trpc/server': ^10.8.1
+  '@tanstack/svelte-query': ^4.24.3
+  '@trpc/client': ^10.9.0
+  '@trpc/server': ^10.9.0
   proxy-deep: ^3.1.1
   svelte: ^3.55.1
-  trpc-sveltekit: ^3.2.4
+  trpc-sveltekit: ^3.2.5
 
 dependencies:
-  '@tanstack/svelte-query': 4.22.2_svelte@3.55.1
+  '@tanstack/svelte-query': 4.24.3_svelte@3.55.1
   '@trpc/client': 10.9.0_@trpc+server@10.9.0
   '@trpc/server': 10.9.0
   proxy-deep: 3.1.1
   svelte: 3.55.1
-  trpc-sveltekit: 3.2.4
+  trpc-sveltekit: 3.2.5
 
 packages:
 
-  /@tanstack/query-core/4.22.0:
-    resolution: {integrity: sha512-OeLyBKBQoT265f5G9biReijeP8mBxNFwY7ZUu1dKL+YzqpG5q5z7J/N1eT8aWyKuhyDTiUHuKm5l+oIVzbtrjw==}
+  /@tanstack/query-core/4.24.3:
+    resolution: {integrity: sha512-vThlbfbcilUGjIs4K3enVvS39vsYOmguBcLa7foSqCrE5kvhxXEk4TutB9NzYHx/4LYMvheeLTegod0cSMjQWg==}
     dev: false
 
-  /@tanstack/svelte-query/4.22.2_svelte@3.55.1:
-    resolution: {integrity: sha512-e7PIMuRS3viilkMXrDOxYYnU7LbeqpyK6J+cQTtDjA9tFvAFzYt/9DSy5uhjKkNPh0jGFSmY2GBRa2UtSlGQJg==}
+  /@tanstack/svelte-query/4.24.3_svelte@3.55.1:
+    resolution: {integrity: sha512-hy4bSvQcE1piAeyPBGls/oNDfE/VnK95Q9/8q07YNE36yYChgoZ8ZOOM+J03MPNRi4Nl5gBBjvHVppR41hqd1Q==}
     peerDependencies:
       svelte: ^3.54.0
     dependencies:
-      '@tanstack/query-core': 4.22.0
+      '@tanstack/query-core': 4.24.3
       svelte: 3.55.1
     dev: false
 
@@ -52,8 +52,8 @@ packages:
     engines: {node: '>= 8'}
     dev: false
 
-  /trpc-sveltekit/3.2.4:
-    resolution: {integrity: sha512-m7nU+pEfJNna/++yc6kuwe2GUbgRAuxl8PY8jTV9zKKbWhgOfpvjhRP0QgbbhnBXN9rKkQhTJZBDrBwZSszjqQ==}
+  /trpc-sveltekit/3.2.5:
+    resolution: {integrity: sha512-b73LSquF0QurtPt7p/sb/4wSzzNaw82aiF1yXLKi1dmpbtoWxeQ3LcmHvJ5q2ohFfBqt7P8cUoyF99J3GTOLug==}
     dependencies:
       '@trpc/client': 10.9.0_@trpc+server@10.9.0
       '@trpc/server': 10.9.0

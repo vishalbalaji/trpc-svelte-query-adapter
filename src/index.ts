@@ -181,6 +181,24 @@ type AddQueryPropTypes<TClient, TError> = {
 
 
 // Implementation
+function createUseQueriesProxy(client: any) {
+	return new DeepProxy({}, {
+		get() {
+			return this.nest(() => { })
+		},
+		apply(_target, _thisArg, argList) {
+			const target = [...this.path].reduce((client, value) => client[value], client)
+			const [input, opts] = argList
+
+			return {
+				...opts,
+				queryKey: getArrayQueryKey(this.path, input, 'query'),
+				queryFn: () => target.query(input),
+			}
+		}
+	})
+}
+
 function createUseContextProxy(client: any) {
 	const queryClient = useQueryClient();
 	return new DeepProxy({}, {
@@ -293,6 +311,8 @@ export function svelteQueryWrapper<TRouter extends AnyRouter>(
 			useQueries: UseQueries<Client, RouterError>
 		}
 
+		const useQueriesProxy = createUseQueriesProxy(client);
+
 		return new DeepProxy({} as ClientWithQuery, {
 			get() {
 				return this.nest(() => { })
@@ -306,6 +326,8 @@ export function svelteQueryWrapper<TRouter extends AnyRouter>(
 				const [input, opts] = argList
 
 				if (procedure === ProcedureNames.query) {
+					console.log('Running Query: ', this.path);
+
 					return createQuery({
 						...opts,
 						queryKey: getArrayQueryKey(this.path, input, 'query'),
@@ -333,7 +355,9 @@ export function svelteQueryWrapper<TRouter extends AnyRouter>(
 						opts
 					)
 				} else if (procedure === ProcedureNames.queries) {
-					if (this.path.length === 0) throw new Error('`useQueries` unimplemented')
+					if (this.path.length === 0) {
+						return createQueries(input(useQueriesProxy));
+					}
 				} else if (procedure === ProcedureNames.context) {
 					return createUseContextProxy(client)
 				}
