@@ -195,31 +195,42 @@ function createUseContextProxy(client: any) {
 
 			// TODO: should probably replace `reduce` with `for...of` for better performance
 			const target = [...this.path].reduce((client, value) => client[value], client) as any
-			const [input, ...opts] = argList
+			const [input, ...rest] = argList
 
 			if (utilName === ContextProcedureNames.invalidate) {
-				const filters = opts[0]
+				const [filters] = rest;
 
-				return queryClient.invalidateQueries({ ...filters, queryKey: getArrayQueryKey(this.path, input, 'any') });
+				return queryClient.invalidateQueries({
+					...filters,
+					queryKey: getArrayQueryKey(this.path, input, 'any')
+				});
 			} else if (utilName === ContextProcedureNames.fetch) {
+				const [opts] = rest;
+
 				return queryClient.fetchQuery({
 					...opts,
 					queryKey: getArrayQueryKey(this.path, input, 'query'),
 					queryFn: () => target.query(input),
 				});
 			} else if (utilName === ContextProcedureNames.fetchInfinite) {
+				const [opts] = rest;
+
 				return queryClient.fetchInfiniteQuery({
 					...opts,
 					queryKey: getArrayQueryKey(this.path, input, 'infinite'),
 					queryFn: () => target.query(input),
 				});
 			} else if (utilName === ContextProcedureNames.prefetch) {
+				const [opts] = rest;
+
 				return queryClient.prefetchQuery({
 					...opts,
 					queryKey: getArrayQueryKey(this.path, input, 'query'),
 					queryFn: () => target.query(input),
 				});
 			} else if (utilName === ContextProcedureNames.prefetchInfinite) {
+				const [opts] = rest;
+
 				return queryClient.prefetchInfiniteQuery({
 					...opts,
 					queryKey: getArrayQueryKey(this.path, input, 'infinite'),
@@ -228,37 +239,37 @@ function createUseContextProxy(client: any) {
 			} else if (utilName === ContextProcedureNames.refetch) {
 				return queryClient.refetchQueries(
 					getArrayQueryKey(this.path, input, 'any'),
-					...opts
+					...rest
 				);
 			} else if (utilName === ContextProcedureNames.reset) {
 				return queryClient.resetQueries(
 					getArrayQueryKey(this.path, input, 'any'),
-					...opts
+					...rest
 				)
 			} else if (utilName === ContextProcedureNames.cancel) {
 				return queryClient.cancelQueries(
 					getArrayQueryKey(this.path, input, 'any'),
-					...opts
+					...rest
 				)
 			} else if (utilName === ContextProcedureNames.setData) {
 				return queryClient.setQueryData(
 					getArrayQueryKey(this.path, input, 'query'),
-					...opts as [any]
+					...rest as [any]
 				)
 			} else if (utilName === ContextProcedureNames.getData) {
 				return queryClient.getQueryData(
 					getArrayQueryKey(this.path, input, 'query'),
-					...opts
+					...rest
 				)
 			} else if (utilName === ContextProcedureNames.setInfiniteData) {
 				return queryClient.setQueryData(
 					getArrayQueryKey(this.path, input, 'infinite'),
-					...opts as [any]
+					...rest as [any]
 				)
 			} else if (utilName === ContextProcedureNames.getInfiniteData) {
 				return queryClient.getQueryData(
 					getArrayQueryKey(this.path, input, 'infinite'),
-					...opts
+					...rest
 				)
 			}
 
@@ -292,7 +303,7 @@ export function svelteQueryWrapper<TRouter extends AnyRouter>(
 
 				// TODO: should probably replace `reduce` with `for...of` for better performance
 				const target = [...this.path].reduce((client, value) => client[value], client as Record<string, any>)
-				const [input, ...opts] = argList
+				const [input, opts] = argList
 
 				if (procedure === ProcedureNames.query) {
 					return createQuery({
@@ -319,7 +330,7 @@ export function svelteQueryWrapper<TRouter extends AnyRouter>(
 					return getArrayQueryKey(
 						this.path,
 						input,
-						...opts as [any]
+						opts
 					)
 				} else if (procedure === ProcedureNames.queries) {
 					if (this.path.length === 0) throw new Error('`useQueries` unimplemented')
