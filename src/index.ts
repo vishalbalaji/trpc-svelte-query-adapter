@@ -133,21 +133,10 @@ type UseQueriesRecord<TClient, TError> = { [K in keyof TClient]:
 	: UseQueriesRecord<TClient[K], TError>
 }
 
-type QueriesResults<
-	TQueriesOptions extends CreateQueryOptionsForUseQueries<any, any>[],
-> = {
-		[TKey in keyof TQueriesOptions]: TQueriesOptions[TKey] extends CreateQueryOptionsForUseQueries<
-			infer TQueryFnData,
-			infer TError
-		>
-		? ReturnType<typeof createQuery<TQueryFnData, TError>>
-		: never;
-	};
-
 type UseQueries<TClient, TError> = <TOpts extends CreateQueryOptionsForUseQueries<any, any>[]>(
 	queriesCallback: (t: UseQueriesRecord<OnlyQueries<TClient>, TError>) => readonly [...TOpts],
 	context?: CreateQueryOptions['context']
-) => QueriesResults<TOpts>
+) => ReturnType<typeof createQueries<TOpts>>
 
 
 // Procedures
