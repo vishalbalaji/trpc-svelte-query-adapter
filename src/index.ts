@@ -1,7 +1,7 @@
 import DeepProxy from 'proxy-deep';
 
 import type { TRPCClientError } from '@trpc/client';
-import type { AnyRouter } from '@trpc/server';
+import type { AnyRouter, inferRouterError } from '@trpc/server';
 import type { createTRPCClient, TRPCClientInit } from 'trpc-sveltekit';
 
 import {
@@ -34,9 +34,9 @@ type WithNevers<T, V> = { [K in keyof T]:
 }
 type Without<T, V, I = WithNevers<T, V>> = Pick<I, { [K in keyof I]: I[K] extends never ? never : K }[keyof I]>
 
-type HasQuery = { query: any }
-type HasMutate = { mutate: any }
-type HasSubscribe = { subscribe: any }
+type HasQuery = { query: (...args: any[]) => any }
+type HasMutate = { mutate: (...args: any[]) => any }
+type HasSubscribe = { subscribe: (...args: any[]) => any }
 type OnlyQueries<TClient> = Without<TClient, HasMutate | HasSubscribe>
 
 
@@ -171,14 +171,13 @@ type UseMutationProcedure<TInput, TOutput, TError> = {
 
 type UseSubscriptionProcedure<TInput, TOutput, TError> = never
 
-type AddQueryPropTypes<TClient, TError> = {
+type AddQueryPropTypes<TClient, TError> = TClient extends Record<any, any> ? {
 	[K in keyof TClient]:
 	TClient[K] extends HasQuery ? QueryProcedures<Parameters<TClient[K]['query']>[0], ReturnType<TClient[K]['query']>, TError>
 	: TClient[K] extends HasMutate ? UseMutationProcedure<Parameters<TClient[K]['mutate']>[0], ReturnType<TClient[K]['mutate']>, TError>
 	: TClient[K] extends HasSubscribe ? UseSubscriptionProcedure<Parameters<TClient[K]['subscribe']>[0], ReturnType<TClient[K]['subscribe']>, TError>
 	: AddQueryPropTypes<TClient[K], TError> & GetQueryKey
-};
-
+} : TClient;
 
 // Implementation
 function createUseQueriesProxy(client: any) {
@@ -306,64 +305,67 @@ export function svelteQueryWrapper<TRouter extends AnyRouter>(
 		const client = trpc(init);
 		type Client = typeof client;
 
-		type ClientWithQuery = AddQueryPropTypes<Client, RouterError> & {
-			useContext(): UseContext<Client, RouterError>,
-			useQueries: UseQueries<Client, RouterError>
-		}
+		type ClientWithQuery = AddQueryPropTypes<Client, RouterError>
 
 		const useQueriesProxy = createUseQueriesProxy(client);
 
-		return new DeepProxy({} as ClientWithQuery, {
-			get() {
-				return this.nest(() => { })
-			},
+		return new DeepProxy({} as ClientWithQuery &
+			(ClientWithQuery extends Record<any, any> ?
+				{
+					useContext(): UseContext<Client, RouterError>,
+					useQueries: UseQueries<Client, RouterError>
+				} : {}),
+			{
+				get() {
+					return this.nest(() => { })
+				},
 
-			apply(_target, _thisArg, argList) {
-				const procedure = this.path.pop()
+				apply(_target, _thisArg, argList) {
+					const procedure = this.path.pop()
 
-				// TODO: should probably replace `reduce` with `for...of` for better performance
-				const target = [...this.path].reduce((client, value) => client[value], client as Record<string, any>)
-				const [input, opts] = argList
+					// TODO: should probably replace `reduce` with `for...of` for better performance
+					const target = [...this.path].reduce((client, value) => client[value], client as Record<string, any>)
+					const [input, opts] = argList
 
-				if (procedure === ProcedureNames.query) {
-					console.log('Running Query: ', this.path);
-
-					return createQuery({
-						...opts,
-						queryKey: getArrayQueryKey(this.path, input, 'query'),
-						queryFn: () => (target as any).query(input),
-					})
-				} else if (procedure === ProcedureNames.infiniteQuery) {
-					return createInfiniteQuery({
-						...opts,
-						queryKey: getArrayQueryKey(this.path, input, 'infinite'),
-						queryFn: () => (target as any).query(input),
-					})
-				} else if (procedure === ProcedureNames.mutate) {
-					return createMutation({
-						...opts,
-						mutationKey: this.path,
-						mutationFn: () => (target as any).mutate(input),
-					})
-				} else if (procedure === ProcedureNames.queryKey) {
-					// NOTE: should probably throw error for procedures
-					// like `useMutation` that don't have `getQueryKey`,
-					// but it is not handled in `@trpc/react-query` either.
-					return getArrayQueryKey(
-						this.path,
-						input,
-						opts
-					)
-				} else if (procedure === ProcedureNames.queries) {
-					if (this.path.length === 0) {
-						return createQueries(input(useQueriesProxy));
+					// BUG: routers with name `useQuery`, `useMutation` and so on should not return functions.
+					// Should probably move all this logic to `get()` to prevent this.
+					if (procedure === ProcedureNames.query) {
+						return createQuery({
+							...opts,
+							queryKey: getArrayQueryKey(this.path, input, 'query'),
+							queryFn: () => (target as any).query(input),
+						})
+					} else if (procedure === ProcedureNames.infiniteQuery) {
+						return createInfiniteQuery({
+							...opts,
+							queryKey: getArrayQueryKey(this.path, input, 'infinite'),
+							queryFn: () => (target as any).query(input),
+						})
+					} else if (procedure === ProcedureNames.mutate) {
+						return createMutation({
+							...opts,
+							mutationKey: this.path,
+							mutationFn: () => (target as any).mutate(input),
+						})
+					} else if (procedure === ProcedureNames.queryKey) {
+						// NOTE: should probably throw error for procedures
+						// like `useMutation` that don't have `getQueryKey`,
+						// but it is not handled in `@trpc/react-query` either.
+						return getArrayQueryKey(
+							this.path,
+							input,
+							opts
+						)
+					} else if (procedure === ProcedureNames.queries) {
+						if (this.path.length === 0) {
+							return createQueries(input(useQueriesProxy));
+						}
+					} else if (procedure === ProcedureNames.context) {
+						return createUseContextProxy(client)
 					}
-				} else if (procedure === ProcedureNames.context) {
-					return createUseContextProxy(client)
-				}
 
-				return target[procedure as string].call();
-			}
-		});
+					return target[procedure as string].call();
+				}
+			});
 	};
 };
