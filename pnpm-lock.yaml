@@ -1,46 +1,46 @@
 lockfileVersion: 5.4
 
 specifiers:
-  '@tanstack/svelte-query': ^4.24.3
-  '@trpc/client': ^10.9.0
-  '@trpc/server': ^10.9.0
+  '@tanstack/svelte-query': ^4.24.4
+  '@trpc/client': ^10.9.1
+  '@trpc/server': ^10.9.1
   proxy-deep: ^3.1.1
   svelte: ^3.55.1
-  trpc-sveltekit: ^3.2.5
+  trpc-sveltekit: ^3.2.7
 
 dependencies:
-  '@tanstack/svelte-query': 4.24.3_svelte@3.55.1
-  '@trpc/client': 10.9.0_@trpc+server@10.9.0
-  '@trpc/server': 10.9.0
+  '@tanstack/svelte-query': 4.24.4_svelte@3.55.1
+  '@trpc/client': 10.9.1_@trpc+server@10.9.1
+  '@trpc/server': 10.9.1
   proxy-deep: 3.1.1
   svelte: 3.55.1
-  trpc-sveltekit: 3.2.5
+  trpc-sveltekit: 3.2.7
 
 packages:
 
-  /@tanstack/query-core/4.24.3:
-    resolution: {integrity: sha512-vThlbfbcilUGjIs4K3enVvS39vsYOmguBcLa7foSqCrE5kvhxXEk4TutB9NzYHx/4LYMvheeLTegod0cSMjQWg==}
+  /@tanstack/query-core/4.24.4:
+    resolution: {integrity: sha512-9dqjv9eeB6VHN7lD3cLo16ZAjfjCsdXetSAD5+VyKqLUvcKTL0CklGQRJu+bWzdrS69R6Ea4UZo8obHYZnG6aA==}
     dev: false
 
-  /@tanstack/svelte-query/4.24.3_svelte@3.55.1:
-    resolution: {integrity: sha512-hy4bSvQcE1piAeyPBGls/oNDfE/VnK95Q9/8q07YNE36yYChgoZ8ZOOM+J03MPNRi4Nl5gBBjvHVppR41hqd1Q==}
+  /@tanstack/svelte-query/4.24.4_svelte@3.55.1:
+    resolution: {integrity: sha512-B2N+nNPOe9wxZ01i3Ebvkc8vDX9ZDQTiaazXqpld7O27R+zhIBlk6MU8vNzPBDSKrhhl2kak8SwyJOExsVZQXA==}
     peerDependencies:
       svelte: ^3.54.0
     dependencies:
-      '@tanstack/query-core': 4.24.3
+      '@tanstack/query-core': 4.24.4
       svelte: 3.55.1
     dev: false
 
-  /@trpc/client/10.9.0_@trpc+server@10.9.0:
-    resolution: {integrity: sha512-id6318qpgqllNOuBp7nuciXFPXCe+zae5d4r1hze6Eyp5fFFNO58TqA+4Q44KIcHgpfWyW2egs6iPeql3PrdKA==}
+  /@trpc/client/10.9.1_@trpc+server@10.9.1:
+    resolution: {integrity: sha512-9ma44dFU40KHIEaMdyjRJd9LloFyZZXeAbZJTi2+XK/5sj64FRqqef3fWTj2dBc7A09pk8gls4Tqa3tNC98jSg==}
     peerDependencies:
-      '@trpc/server': 10.9.0
+      '@trpc/server': 10.9.1
     dependencies:
-      '@trpc/server': 10.9.0
+      '@trpc/server': 10.9.1
     dev: false
 
-  /@trpc/server/10.9.0:
-    resolution: {integrity: sha512-5psyZgbvy29pJND32hwkWTMbv6s86IbsPOeDopsgNF0VegZT6Dsijmb7Ub/TDhuJVQVq5u4u5briMXi3SxmBkw==}
+  /@trpc/server/10.9.1:
+    resolution: {integrity: sha512-cUbj8KphlH0IHuoVUhkZrN1E+FdfRpagglqhblyj8VPJKkjzTjb6D8MYHlXhiX7Tdmtwy2w0ev39HBkzlM0thg==}
     dev: false
 
   /proxy-deep/3.1.1:
@@ -52,9 +52,9 @@ packages:
     engines: {node: '>= 8'}
     dev: false
 
-  /trpc-sveltekit/3.2.5:
-    resolution: {integrity: sha512-b73LSquF0QurtPt7p/sb/4wSzzNaw82aiF1yXLKi1dmpbtoWxeQ3LcmHvJ5q2ohFfBqt7P8cUoyF99J3GTOLug==}
+  /trpc-sveltekit/3.2.7:
+    resolution: {integrity: sha512-61UrbNylz5GEMEVPZtg2awr7KM37Yr0htrQA0S1Tt2ciOy1sU3KgFSDsI31ASLR8jUlfIhgKi4uVtS+lQdDE3w==}
     dependencies:
-      '@trpc/client': 10.9.0_@trpc+server@10.9.0
-      '@trpc/server': 10.9.0
+      '@trpc/client': 10.9.1_@trpc+server@10.9.1
+      '@trpc/server': 10.9.1
     dev: false

@@ -10,11 +10,11 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@tanstack/svelte-query": "^4.24.3",
-    "@trpc/client": "^10.9.0",
-    "@trpc/server": "^10.9.0",
+    "@tanstack/svelte-query": "^4.24.4",
+    "@trpc/client": "^10.9.1",
+    "@trpc/server": "^10.9.1",
     "proxy-deep": "^3.1.1",
     "svelte": "^3.55.1",
-    "trpc-sveltekit": "^3.2.5"
+    "trpc-sveltekit": "^3.2.7"
   }
 }
