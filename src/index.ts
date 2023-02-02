@@ -1,7 +1,7 @@
 import DeepProxy from 'proxy-deep';
 
 import type { TRPCClientError } from '@trpc/client';
-import type { AnyRouter, inferRouterError } from '@trpc/server';
+import type { AnyRouter } from '@trpc/server';
 import type { createTRPCClient, TRPCClientInit } from 'trpc-sveltekit';
 
 import {
