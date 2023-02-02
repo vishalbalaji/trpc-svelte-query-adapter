@@ -12,9 +12,19 @@ This package provides an adapter to call `tRPC` procedures wrapped using `@tanst
 ```svelte
  <!-- routes/+layout.svelte -->
 <script lang="ts">
+  import { browser } from "$app/environment";
   import { QueryClient, QueryClientProvider } from "@tanstack/svelte-query";
 
-  const queryClient = new QueryClient();
+  // Make sure to disable queries on the server
+  // as recommended in:
+  // https://tanstack.com/query/latest/docs/svelte/ssr
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        enabled: browser,
+      },
+    },
+  });
 </script>
 
 <QueryClientProvider client={queryClient}>
