@@ -327,8 +327,9 @@ export function svelteQueryWrapper<TRouter extends AnyRouter>(
 					const target = [...this.path].reduce((client, value) => client[value], client as Record<string, any>)
 					const [input, opts] = argList
 
-					// BUG: routers with name `useQuery`, `useMutation` and so on should not return functions.
-					// Should probably move all this logic to `get()` to prevent this.
+						// NOTE: should probably throw error for procedures
+						// for procedures with conflicting names like `useQuery`,
+						// `useMutation`, etc but it is not handled in `@trpc/react-query` either.
 					if (procedure === ProcedureNames.query) {
 						return createQuery({
 							...opts,
