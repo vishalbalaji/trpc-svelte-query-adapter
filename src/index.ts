@@ -1,6 +1,6 @@
 import DeepProxy from 'proxy-deep';
 
-import type { TRPCClientError } from '@trpc/client';
+import { TRPCClientErrorLike } from '@trpc/client';
 import type { AnyRouter } from '@trpc/server';
 import type { createTRPCClient, TRPCClientInit } from 'trpc-sveltekit';
 
@@ -24,7 +24,7 @@ import {
 	Updater,
 	SetDataOptions,
 } from '@tanstack/svelte-query';
-
+import { onDestroy } from 'svelte';
 
 // CREDIT: https://stackoverflow.com/a/63448246
 type WithNevers<T, V> = { [K in keyof T]:
@@ -169,17 +169,55 @@ type UseMutationProcedure<TInput, TOutput, TError> = {
 		=> ReturnType<typeof createMutation<Awaited<TOutput>, TError>>
 }
 
-type UseSubscriptionProcedure<TInput, TOutput, TError> = never
+type UseTRPCSubscriptionOptions<TOutput, TError> = {
+	enabled?: boolean
+	onStarted?: () => void
+	onData: (data: TOutput) => void
+	onError?: (err: TError) => void
+}
+
+type GetSubscriptionOutput<TOpts> = TOpts extends unknown & Partial<infer A>
+	? A extends { onData: any }
+	? Parameters<A['onData']>[0] : never
+	: never
+
+type UseSubscriptionProcedure<TInput, TOutput, TError> = {
+	[ProcedureNames.subscribe]: (input: TInput, opts?: UseTRPCSubscriptionOptions<TOutput, TError>)
+		=> void
+}
 
 type AddQueryPropTypes<TClient, TError> = TClient extends Record<any, any> ? {
 	[K in keyof TClient]:
 	TClient[K] extends HasQuery ? QueryProcedures<Parameters<TClient[K]['query']>[0], ReturnType<TClient[K]['query']>, TError>
 	: TClient[K] extends HasMutate ? UseMutationProcedure<Parameters<TClient[K]['mutate']>[0], ReturnType<TClient[K]['mutate']>, TError>
-	: TClient[K] extends HasSubscribe ? UseSubscriptionProcedure<Parameters<TClient[K]['subscribe']>[0], ReturnType<TClient[K]['subscribe']>, TError>
+	: TClient[K] extends HasSubscribe ? UseSubscriptionProcedure<Parameters<TClient[K]['subscribe']>[0], GetSubscriptionOutput<Parameters<TClient[K]['subscribe']>[1]>, TError>
 	: AddQueryPropTypes<TClient[K], TError> & GetQueryKey
 } : TClient;
 
 // Implementation
+function useSubscription(cb: (...args: any[]) => any, input: any, opts: any) {
+	const enabled = opts?.enabled ?? true;
+	if (!enabled) return;
+
+	let isStopped = false;
+	const subscription = cb(input, {
+		onStarted: () => {
+			if (!isStopped) opts.onStarted?.();
+		},
+		onData: (data: any) => {
+			if (!isStopped) opts.onData?.(data as any);
+		},
+		onError: (err: any) => {
+			if (!isStopped) opts.onError?.(err);
+		}
+	})
+
+	return onDestroy(() => {
+		isStopped = true;
+		subscription.unsubscribe();
+	})
+}
+
 function createUseQueriesProxy(client: any) {
 	return new DeepProxy({}, {
 		get() {
@@ -299,7 +337,7 @@ function createUseContextProxy(client: any) {
 export function svelteQueryWrapper<TRouter extends AnyRouter>(
 	trpc: (init?: TRPCClientInit) => ReturnType<typeof createTRPCClient<TRouter>>
 ) {
-	type RouterError = TRPCClientError<TRouter>
+	type RouterError = TRPCClientErrorLike<TRouter>
 
 	return (init?: TRPCClientInit) => {
 		const client = trpc(init);
@@ -327,9 +365,9 @@ export function svelteQueryWrapper<TRouter extends AnyRouter>(
 					const target = [...this.path].reduce((client, value) => client[value], client as Record<string, any>)
 					const [input, opts] = argList
 
-						// NOTE: should probably throw error for procedures
-						// for procedures with conflicting names like `useQuery`,
-						// `useMutation`, etc but it is not handled in `@trpc/react-query` either.
+					// NOTE: should probably throw error for procedures
+					// for procedures with conflicting names like `useQuery`,
+					// `useMutation`, etc but it is not handled in `@trpc/react-query` either.
 					if (procedure === ProcedureNames.query) {
 						return createQuery({
 							...opts,
@@ -348,6 +386,8 @@ export function svelteQueryWrapper<TRouter extends AnyRouter>(
 							mutationKey: this.path,
 							mutationFn: () => (target as any).mutate(input),
 						})
+					} else if (procedure === ProcedureNames.subscribe) {
+						return useSubscription(target.subscribe, input, opts)
 					} else if (procedure === ProcedureNames.queryKey) {
 						// NOTE: should probably throw error for procedures
 						// like `useMutation` that don't have `getQueryKey`,
