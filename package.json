@@ -14,7 +14,6 @@
     "@trpc/client": "^10.9.1",
     "@trpc/server": "^10.9.1",
     "proxy-deep": "^3.1.1",
-    "svelte": "^3.55.1",
-    "trpc-sveltekit": "^3.2.9"
+    "svelte": "^3.55.1"
   }
 }

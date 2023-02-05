@@ -1,8 +1,7 @@
 import DeepProxy from 'proxy-deep';
 
-import { TRPCClientErrorLike } from '@trpc/client';
+import type { TRPCClientErrorLike, CreateTRPCProxyClient } from '@trpc/client';
 import type { AnyRouter } from '@trpc/server';
-import type { createTRPCClient, TRPCClientInit } from 'trpc-sveltekit';
 
 import {
 	useQueryClient,
@@ -24,6 +23,7 @@ import {
 	Updater,
 	SetDataOptions,
 } from '@tanstack/svelte-query';
+
 import { onDestroy } from 'svelte';
 
 // CREDIT: https://stackoverflow.com/a/63448246
@@ -335,78 +335,74 @@ function createUseContextProxy(client: any) {
 }
 
 export function svelteQueryWrapper<TRouter extends AnyRouter>(
-	trpc: (init?: TRPCClientInit) => ReturnType<typeof createTRPCClient<TRouter>>
+	client: CreateTRPCProxyClient<TRouter>
 ) {
-	type RouterError = TRPCClientErrorLike<TRouter>
+	type Client = typeof client;
+	type RouterError = TRPCClientErrorLike<TRouter>;
 
-	return (init?: TRPCClientInit) => {
-		const client = trpc(init);
-		type Client = typeof client;
+	type ClientWithQuery = AddQueryPropTypes<Client, RouterError>;
 
-		type ClientWithQuery = AddQueryPropTypes<Client, RouterError>
+	const useQueriesProxy = createUseQueriesProxy(client);
 
-		const useQueriesProxy = createUseQueriesProxy(client);
-
-		return new DeepProxy({} as ClientWithQuery &
-			(ClientWithQuery extends Record<any, any> ?
-				{
-					useContext(): UseContext<Client, RouterError>,
-					useQueries: UseQueries<Client, RouterError>
-				} : {}),
+	return new DeepProxy({} as ClientWithQuery &
+		(ClientWithQuery extends Record<any, any> ?
 			{
-				get() {
-					return this.nest(() => { })
-				},
+				useContext(): UseContext<Client, RouterError>,
+				useQueries: UseQueries<Client, RouterError>
+			} : {}),
+		{
+			get() {
+				return this.nest(() => { })
+			},
 
-				apply(_target, _thisArg, argList) {
-					const procedure = this.path.pop()
+			apply(_target, _thisArg, argList) {
+				const procedure = this.path.pop()
 
-					// TODO: should probably replace `reduce` with `for...of` for better performance
-					const target = [...this.path].reduce((client, value) => client[value], client as Record<string, any>)
-					const [input, opts] = argList
+				// TODO: should probably replace `reduce` with `for...of` for better performance
+				const target = [...this.path].reduce((client, value) => client[value], client as Record<string, any>)
+				const [input, opts] = argList
 
+				// NOTE: should probably throw error for procedures
+				// for procedures with conflicting names like `useQuery`,
+				// `useMutation`, etc but it is not handled in `@trpc/react-query` either.
+				if (procedure === ProcedureNames.query) {
+					return createQuery({
+						...opts,
+						queryKey: getArrayQueryKey(this.path, input, 'query'),
+						queryFn: () => (target as any).query(input),
+					})
+				} else if (procedure === ProcedureNames.infiniteQuery) {
+					return createInfiniteQuery({
+						...opts,
+						queryKey: getArrayQueryKey(this.path, input, 'infinite'),
+						queryFn: () => (target as any).query(input),
+					})
+				} else if (procedure === ProcedureNames.mutate) {
+					return createMutation({
+						...opts,
+						mutationKey: this.path,
+						mutationFn: () => (target as any).mutate(input),
+					})
+				} else if (procedure === ProcedureNames.subscribe) {
+					return useSubscription(target.subscribe, input, opts)
+				} else if (procedure === ProcedureNames.queryKey) {
 					// NOTE: should probably throw error for procedures
-					// for procedures with conflicting names like `useQuery`,
-					// `useMutation`, etc but it is not handled in `@trpc/react-query` either.
-					if (procedure === ProcedureNames.query) {
-						return createQuery({
-							...opts,
-							queryKey: getArrayQueryKey(this.path, input, 'query'),
-							queryFn: () => (target as any).query(input),
-						})
-					} else if (procedure === ProcedureNames.infiniteQuery) {
-						return createInfiniteQuery({
-							...opts,
-							queryKey: getArrayQueryKey(this.path, input, 'infinite'),
-							queryFn: () => (target as any).query(input),
-						})
-					} else if (procedure === ProcedureNames.mutate) {
-						return createMutation({
-							...opts,
-							mutationKey: this.path,
-							mutationFn: () => (target as any).mutate(input),
-						})
-					} else if (procedure === ProcedureNames.subscribe) {
-						return useSubscription(target.subscribe, input, opts)
-					} else if (procedure === ProcedureNames.queryKey) {
-						// NOTE: should probably throw error for procedures
-						// like `useMutation` that don't have `getQueryKey`,
-						// but it is not handled in `@trpc/react-query` either.
-						return getArrayQueryKey(
-							this.path,
-							input,
-							opts
-						)
-					} else if (procedure === ProcedureNames.queries) {
-						if (this.path.length === 0) {
-							return createQueries(input(useQueriesProxy));
-						}
-					} else if (procedure === ProcedureNames.context) {
-						return createUseContextProxy(client)
+					// like `useMutation` that don't have `getQueryKey`,
+					// but it is not handled in `@trpc/react-query` either.
+					return getArrayQueryKey(
+						this.path,
+						input,
+						opts
+					)
+				} else if (procedure === ProcedureNames.queries) {
+					if (this.path.length === 0) {
+						return createQueries(input(useQueriesProxy));
 					}
-
-					return target[procedure as string].call();
+				} else if (procedure === ProcedureNames.context) {
+					return createUseContextProxy(client)
 				}
-			});
-	};
+
+				return target[procedure as string].call();
+			}
+		});
 };

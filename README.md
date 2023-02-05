@@ -36,9 +36,7 @@ This package provides an adapter to call `tRPC` procedures wrapped using `@tanst
 
 ```typescript
 export function trpc(init?: TRPCClientInit) {
-  if (typeof window === 'undefined') return createTRPCClient<Router>({ init });
-  if (!browserClient) browserClient = createTRPCClient<Router>();
-  return browserClient;
+  return createTRPCClient<Router>({ init })
 }
 ```
 
@@ -47,10 +45,10 @@ to:
 ```typescript
 import { svelteQueryWrapper } from 'trpc-svelte-query-adapter';
 
-export const trpc = (init?: TRPCClientInit) => {
-  if (typeof window === 'undefined') return createTRPCClient<Router>({ init });
-  if (!browserClient) browserClient = createTRPCClient<Router>();
-  return browserClient;
+export function trpc(init?: TRPCClientInit) {
+  return svelteQueryWrapper<Router>(
+    createTRPCClient<Router>({ init })
+  );
 }
 
 export const trpcWithQuery = svelteQueryWrapper<Router>(trpc) // Providing your `Router` type as a param is crucial.

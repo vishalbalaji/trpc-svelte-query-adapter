@@ -6,7 +6,6 @@ specifiers:
   '@trpc/server': ^10.9.1
   proxy-deep: ^3.1.1
   svelte: ^3.55.1
-  trpc-sveltekit: ^3.2.9
 
 dependencies:
   '@tanstack/svelte-query': 4.24.4_svelte@3.55.1
@@ -14,7 +13,6 @@ dependencies:
   '@trpc/server': 10.9.1
   proxy-deep: 3.1.1
   svelte: 3.55.1
-  trpc-sveltekit: 3.2.9
 
 packages:
 
@@ -50,11 +48,4 @@ packages:
   /svelte/3.55.1:
     resolution: {integrity: sha512-S+87/P0Ve67HxKkEV23iCdAh/SX1xiSfjF1HOglno/YTbSTW7RniICMCofWGdJJbdjw3S+0PfFb1JtGfTXE0oQ==}
     engines: {node: '>= 8'}
-    dev: false
-
-  /trpc-sveltekit/3.2.9:
-    resolution: {integrity: sha512-MJO5Rw8bjIVqzPxZ+NTWrfrfP3Hx0v0melEp5Qteu/X8L+c2Jlx9dU4uOQzKZrPTjXjCaO9QpU2uhEnomq0pyg==}
-    dependencies:
-      '@trpc/client': 10.9.1_@trpc+server@10.9.1
-      '@trpc/server': 10.9.1
     dev: false
