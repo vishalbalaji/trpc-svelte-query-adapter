@@ -35,8 +35,12 @@ This package provides an adapter to call `tRPC` procedures wrapped using `@tanst
 3. In `$lib/trpc/client.ts`, wrap the `trpc` function with `svelteQueryWrapper` by changing:
 
 ```typescript
+let browserClient: ReturnType<typeof createTRPCClient<Router>>;
+
 export function trpc(init?: TRPCClientInit) {
-  return createTRPCClient<Router>({ init })
+  if (typeof window === 'undefined') return createTRPCClient<Router>({ init });
+  if (!browserClient) browserClient = createTRPCClient<Router>();
+  return browserClient;
 }
 ```
 
@@ -45,13 +49,14 @@ to:
 ```typescript
 import { svelteQueryWrapper } from 'trpc-svelte-query-adapter';
 
-export function trpc(init?: TRPCClientInit) {
-  return svelteQueryWrapper<Router>(
-    createTRPCClient<Router>({ init })
-  );
-}
+let browserClient: ReturnType<typeof svelteQueryWrapper<Router>>;
 
-export const trpcWithQuery = svelteQueryWrapper<Router>(trpc) // Providing your `Router` type as a param is crucial.
+export function trpc(init?: TRPCClientInit) {
+  const client = svelteQueryWrapper<Router>(createTRPCClient<Router>({ init }))
+  if (typeof window === 'undefined') return client;
+  if (!browserClient) browserClient = client;
+  return browserClient;
+}
 ```
 
 4. Finally, create your client with `trpcWithQuery` in your `svelte` components instead of with `trpc`.
