@@ -32,14 +32,15 @@ This package provides an adapter to call `tRPC` procedures wrapped using `@tanst
 </QueryClientProvider>
 ```
 
-3. In `$lib/trpc/client.ts`, wrap the `trpc` function with `svelteQueryWrapper` by changing:
+3. In `$lib/trpc/client.ts`, wrap the `trpc` client with `svelteQueryWrapper` by changing:
 
 ```typescript
 let browserClient: ReturnType<typeof createTRPCClient<Router>>;
 
 export function trpc(init?: TRPCClientInit) {
-  if (typeof window === 'undefined') return createTRPCClient<Router>({ init });
-  if (!browserClient) browserClient = createTRPCClient<Router>();
+  const client = createTRPCClient<Router>({ init });
+  if (typeof window === 'undefined') return client;
+  if (!browserClient) browserClient = client;
   return browserClient;
 }
 ```
@@ -52,7 +53,9 @@ import { svelteQueryWrapper } from 'trpc-svelte-query-adapter';
 let browserClient: ReturnType<typeof svelteQueryWrapper<Router>>;
 
 export function trpc(init?: TRPCClientInit) {
-  const client = svelteQueryWrapper<Router>(createTRPCClient<Router>({ init }))
+  const client = svelteQueryWrapper<Router>(
+    createTRPCClient<Router>({ init })
+  )
   if (typeof window === 'undefined') return client;
   if (!browserClient) browserClient = client;
   return browserClient;
