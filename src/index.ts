@@ -152,13 +152,13 @@ const ProcedureNames = {
 
 type UseQueryProcedure<TInput, TOutput, TError> = {
 	[ProcedureNames.query]: (input: TInput, opts?: CreateQueryOptions<TOutput, TError>)
-		=> ReturnType<typeof createQuery<Awaited<TOutput>, TError>>
+		=> ReturnType<typeof createQuery<TOutput, TError>>
 }
 
 type UseInfiniteQueryProcedure<TInput, TOutput, TError> = TInput extends { cursor?: any }
 	? {
 		[ProcedureNames.infiniteQuery]: (input: Omit<TInput, 'cursor'>, opts?: CreateInfiniteQueryOptions<TOutput, TError>)
-			=> ReturnType<typeof createInfiniteQuery<Awaited<TOutput>, TError>>
+			=> ReturnType<typeof createInfiniteQuery<TOutput, TError>>
 	}
 	: {}
 
@@ -166,7 +166,7 @@ type QueryProcedures<TInput, TOutput, TError> = UseQueryProcedure<TInput, TOutpu
 
 type UseMutationProcedure<TInput, TOutput, TError> = {
 	[ProcedureNames.mutate]: (input: TInput, opts?: CreateMutationOptions<TInput, TError>)
-		=> ReturnType<typeof createMutation<Awaited<TOutput>, TError>>
+		=> ReturnType<typeof createMutation<TOutput, TError>>
 }
 
 type UseTRPCSubscriptionOptions<TOutput, TError> = {
@@ -188,8 +188,8 @@ type UseSubscriptionProcedure<TInput, TOutput, TError> = {
 
 type AddQueryPropTypes<TClient, TError> = TClient extends Record<any, any> ? {
 	[K in keyof TClient]:
-	TClient[K] extends HasQuery ? QueryProcedures<Parameters<TClient[K]['query']>[0], ReturnType<TClient[K]['query']>, TError>
-	: TClient[K] extends HasMutate ? UseMutationProcedure<Parameters<TClient[K]['mutate']>[0], ReturnType<TClient[K]['mutate']>, TError>
+	TClient[K] extends HasQuery ? QueryProcedures<Parameters<TClient[K]['query']>[0], Awaited<ReturnType<TClient[K]['query']>>, TError>
+	: TClient[K] extends HasMutate ? UseMutationProcedure<Parameters<TClient[K]['mutate']>[0], Awaited<ReturnType<TClient[K]['mutate']>>, TError>
 	: TClient[K] extends HasSubscribe ? UseSubscriptionProcedure<Parameters<TClient[K]['subscribe']>[0], GetSubscriptionOutput<Parameters<TClient[K]['subscribe']>[1]>, TError>
 	: AddQueryPropTypes<TClient[K], TError> & GetQueryKey
 } : TClient;
