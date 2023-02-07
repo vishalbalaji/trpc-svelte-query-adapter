@@ -22,6 +22,7 @@ import {
 	CancelOptions,
 	Updater,
 	SetDataOptions,
+	QueryClient,
 } from '@tanstack/svelte-query';
 
 import { onDestroy } from 'svelte';
@@ -236,8 +237,7 @@ function createUseQueriesProxy(client: any) {
 	})
 }
 
-function createUseContextProxy(client: any) {
-	const queryClient = useQueryClient();
+function createUseContextProxy(client: any, queryClient: QueryClient) {
 	return new DeepProxy({}, {
 		get(_target, key, _receiver) {
 			if (key === ContextProcedureNames.client) return client;
@@ -335,7 +335,8 @@ function createUseContextProxy(client: any) {
 }
 
 export function svelteQueryWrapper<TRouter extends AnyRouter>(
-	client: CreateTRPCProxyClient<TRouter>
+	client: CreateTRPCProxyClient<TRouter>,
+	queryClient?: QueryClient
 ) {
 	type Client = typeof client;
 	type RouterError = TRPCClientErrorLike<TRouter>;
@@ -369,19 +370,19 @@ export function svelteQueryWrapper<TRouter extends AnyRouter>(
 					return createQuery({
 						...opts,
 						queryKey: getArrayQueryKey(this.path, input, 'query'),
-						queryFn: () => (target as any).query(input),
+						queryFn: () => target.query(input),
 					})
 				} else if (procedure === ProcedureNames.infiniteQuery) {
 					return createInfiniteQuery({
 						...opts,
 						queryKey: getArrayQueryKey(this.path, input, 'infinite'),
-						queryFn: () => (target as any).query(input),
+						queryFn: () => target.query(input),
 					})
 				} else if (procedure === ProcedureNames.mutate) {
 					return createMutation({
 						...opts,
 						mutationKey: this.path,
-						mutationFn: () => (target as any).mutate(input),
+						mutationFn: () => target.mutate(input),
 					})
 				} else if (procedure === ProcedureNames.subscribe) {
 					return useSubscription(target.subscribe, input, opts)
@@ -399,7 +400,10 @@ export function svelteQueryWrapper<TRouter extends AnyRouter>(
 						return createQueries(input(useQueriesProxy));
 					}
 				} else if (procedure === ProcedureNames.context) {
-					return createUseContextProxy(client)
+					return createUseContextProxy(
+						client,
+						queryClient ? queryClient : useQueryClient()
+					)
 				}
 
 				return target[procedure as string].call();
