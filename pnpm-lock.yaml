@@ -2,15 +2,15 @@ lockfileVersion: 5.4
 
 specifiers:
   '@tanstack/svelte-query': ^4.24.4
-  '@trpc/client': ^10.9.1
-  '@trpc/server': ^10.9.1
+  '@trpc/client': ^10.10.0
+  '@trpc/server': ^10.10.0
   proxy-deep: ^3.1.1
   svelte: ^3.55.1
 
 dependencies:
   '@tanstack/svelte-query': 4.24.4_svelte@3.55.1
-  '@trpc/client': 10.9.1_@trpc+server@10.9.1
-  '@trpc/server': 10.9.1
+  '@trpc/client': 10.10.0_@trpc+server@10.10.0
+  '@trpc/server': 10.10.0
   proxy-deep: 3.1.1
   svelte: 3.55.1
 
@@ -29,16 +29,16 @@ packages:
       svelte: 3.55.1
     dev: false
 
-  /@trpc/client/10.9.1_@trpc+server@10.9.1:
-    resolution: {integrity: sha512-9ma44dFU40KHIEaMdyjRJd9LloFyZZXeAbZJTi2+XK/5sj64FRqqef3fWTj2dBc7A09pk8gls4Tqa3tNC98jSg==}
+  /@trpc/client/10.10.0_@trpc+server@10.10.0:
+    resolution: {integrity: sha512-HRVGkOsR4FIYpyQILP84HLbj6pRnLKgxy4AIelTf9d9TxD60M5bNhbR2Uz3hqNSb9a2ppaRJBLv7twlV9b4qHQ==}
     peerDependencies:
-      '@trpc/server': 10.9.1
+      '@trpc/server': 10.10.0
     dependencies:
-      '@trpc/server': 10.9.1
+      '@trpc/server': 10.10.0
     dev: false
 
-  /@trpc/server/10.9.1:
-    resolution: {integrity: sha512-cUbj8KphlH0IHuoVUhkZrN1E+FdfRpagglqhblyj8VPJKkjzTjb6D8MYHlXhiX7Tdmtwy2w0ev39HBkzlM0thg==}
+  /@trpc/server/10.10.0:
+    resolution: {integrity: sha512-tCTqcqBT+3nebYFTHtwM877qo5xQPtVlptxKdUzMVWleWT4lFTL4oddk45qVURToci2iMbVJjd4jQU9y9/XwlQ==}
     dev: false
 
   /proxy-deep/3.1.1:
