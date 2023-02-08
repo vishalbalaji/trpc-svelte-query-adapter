@@ -16,8 +16,8 @@ jobs:
       - uses: actions/setup-node@v3
         with:
           node-version: 18
-      - run: pnpm install
-      - run: pnpm build
+      - run: yarn install
+      - run: yarn build
 
   publish-npm:
     needs: build
@@ -28,7 +28,7 @@ jobs:
         with:
           node-version: 18
           registry-url: https://registry.npmjs.org/
-      - run: pnpm install
-      - run: pnpm publish
+      - run: yarn install
+      - run: yarn publish
         env:
           NODE_AUTH_TOKEN: ${{secrets.npm_token}}
