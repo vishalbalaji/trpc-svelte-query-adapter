@@ -1,6 +1,6 @@
 {
 	"name": "trpc-svelte-query-adapter",
-	"version": "1.0.7",
+	"version": "1.0.8",
 	"description": "An adapter to use `@tanstack/svelte-query` with trpc, similar to `@trpc/react-query`.",
 	"keywords": [
 		"trpc",
@@ -26,15 +26,20 @@
 		"url": "https://github.com/vishalbalaji/trpc-svelte-query-adapter/issues"
 	},
 	"license": "MIT",
-  "main": "src/index.ts",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "dependencies": {
-    "@tanstack/svelte-query": "^4.24.4",
-    "@trpc/client": "^10.10.0",
-    "@trpc/server": "^10.10.0",
-    "proxy-deep": "^3.1.1",
-    "svelte": "^3.55.1"
-  }
+	"type": "module",
+	"main": "dist/index.js",
+	"types": "dist/index.d.ts",
+	"scripts": {
+		"build": "tsc"
+	},
+	"dependencies": {
+		"@tanstack/svelte-query": "^4.24.4",
+		"@trpc/client": "^10.10.0",
+		"@trpc/server": "^10.10.0",
+		"proxy-deep": "^3.1.1",
+		"svelte": "^3.55.1"
+	},
+	"devDependencies": {
+		"typescript": "^4.9.5"
+	}
 }
