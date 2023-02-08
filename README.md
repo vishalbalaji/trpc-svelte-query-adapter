@@ -1,6 +1,6 @@
 # `tRPC` - `svelte-query` Adapter
 
-This package provides an adapter to call `tRPC` procedures wrapped using `@tanstack/svelte-query`, similar to <code>[@trpc/react-query](https://trpc.io/docs/react)</code>, to be used with <code>[trpc](https://trpc.io/docs/overview)</code>. This is made possible using <code>[proxy-deep](https://www.npmjs.com/package/proxy-deep)</code>.
+This package provides an adapter to call `tRPC` procedures wrapped with <code>[@tanstack/svelte-query](https://tanstack.com/query/v4/docs/svelte/overview)</code>, similar to <code>[@trpc/react-query](https://trpc.io/docs/react)</code>. This is made possible using <code>[proxy-deep](https://www.npmjs.com/package/proxy-deep)</code>.
 
 ## Installation
 
@@ -15,11 +15,11 @@ yarn add trpc-svelte-query-adapter @trpc/client @trpc/server @tanstact/svelte-qu
 pnpm install trpc-svelte-query-adapter @trpc/client @trpc/server @tanstact/svelte-query
 ```
 
-If you are using client-side Svelte, you would need to install `@trpc/server` as a `devDependency`.
+If you are using client-side Svelte, you would need to install `@trpc/server` as a `devDependency` using `--save-dev`.
 
 ## Usage
 
-The following instructions assume the `tRPC` router to be as such:
+The following instructions assume the `tRPC` router to have the following procedures:
 
 ```typescript
 export const router = t.router({
@@ -39,7 +39,7 @@ export type Router = typeof router;
 
 ### Client-Only Svelte
 
-1. Setup `@tanstack/svelte-query` as instructed in [svelte-query docs](https://tanstack.com/query/v4/docs/svelte/overview).
+1. Setup `@tanstack/svelte-query` as per [svelte-query docs](https://tanstack.com/query/v4/docs/svelte/overview).
 2. Setup <code>[@trpc/client](https://trpc.io/docs/client)</code> and export the `tRPC` client.
 3. Wrap the exported `tRPC` client with `svelteQueryWrapper` from 'trpc-svelte-query', as demonstrated in the example below:
 
@@ -87,7 +87,7 @@ export const trpc = svelteQueryWrapper<Router>(client);
 For Sveltekit, it is recommended that `tRPC` be set up using <code>[trpc-sveltekit](https://icflorescu.github.io/trpc-sveltekit/getting-started)</code>
 
 1. Setup `@tanstack/svelte-query` as per [the ssr example in the svelte-query docs](https://tanstack.com/query/v4/docs/svelte/ssr#using-prefetchquery).
-2. Setup <code>[trpc-sveltekit](https://icflorescu.github.io/trpc-sveltekit/getting-started)</code> as instructed.
+2. Setup <code>[trpc-sveltekit](https://icflorescu.github.io/trpc-sveltekit/getting-started)</code> as per docs.
 3. In `$lib/trpc/client.ts`, wrap the `trpc` client with `svelteQueryWrapper` by changing:
 
 ```typescript
@@ -109,7 +109,7 @@ import { useQueryClient, type QueryClient } from '@tanstack/svelte-query';
 
 let browserClient: ReturnType<typeof svelteQueryWrapper<Router>>;
 
-export function trpc(init?: TRPCClientInit) {
+export function trpc(init?: TRPCClientInit, queryClient?: QueryClient) {
   const client = svelteQueryWrapper<Router>(
     createTRPCClient<Router>({ init }),
     queryClient ? queryClient : useQueryClient()
@@ -120,7 +120,7 @@ export function trpc(init?: TRPCClientInit) {
 }
 ```
 
-4. Finally, create your client with `trpc`.
+4. Finally, create your client with the exported `trpc` function.
 
 ```svelte
 <!-- routes/+page.ts -->
@@ -128,7 +128,7 @@ export function trpc(init?: TRPCClientInit) {
   import { page } from "$app/stores";
   import { trpc } from "$lib/trpc/client";
 
-  const client = trpcWithQuery($page);
+  const client = trpc($page);
 
   const hello = client.greeting.useQuery("foo", { retry: false });
 </script>
@@ -144,16 +144,18 @@ export function trpc(init?: TRPCClientInit) {
 </p>
 ```
 
-One caveat with SvelteKit is that server-side pre-fetching needs to happen in the `load` function in `(+page/+layout).ts`, which means that there is currently no way to implement automatic server-side query pre-fetching, at least to the extent of my SvelteKit knowledge. If you think you might have a solution potential solution for this, please feel free to open an issue or PR. Until then, though, server-side query pre-fetching can be done manually as so:
+One caveat with SvelteKit is that server-side pre-fetching needs to happen in the `load` function in `(+page/+layout).ts`, which means that there is currently no way to implement automatic server-side query pre-fetching, at least with how this library is implemented. If you think you might have a potential solution for this, please feel free to open an issue or PR.
+
+Until then, server-side query pre-fetching can be done manually as so:
 
 ```typescript
 // /path/to/route/+page.ts
-import { trpcWithQuery } from '$lib/trpc/client'
+import { trpc } from '$lib/trpc/client'
 import type { PageLoad } from './$types'
 
-export const load= (async (event) => {
+export const load = (async (event) => {
   const { queryClient } = await event.parent()
-  const client = trpcWithQuery(event, queryClient); // You need to pass in the `queryClient` when initializing on the server.
+  const client = trpc(event, queryClient); // `queryClient` needs to be passed when initializing on the server.
 
   const utils = client.useContext()
 
