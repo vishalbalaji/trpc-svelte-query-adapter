@@ -165,9 +165,9 @@ type UseInfiniteQueryProcedure<TInput, TOutput, TError> = TInput extends { curso
 
 type QueryProcedures<TInput, TOutput, TError> = UseQueryProcedure<TInput, TOutput, TError> & UseInfiniteQueryProcedure<TInput, TOutput, TError> & GetQueryKey<TInput>
 
-type UseMutationProcedure<TInput, TOutput, TError> = {
-	[ProcedureNames.mutate]: (input: TInput, opts?: CreateMutationOptions<TInput, TError>)
-		=> ReturnType<typeof createMutation<TOutput, TError>>
+type UseMutationProcedure<TInput, TOutput, TError, TContext = unknown> = {
+	[ProcedureNames.mutate]: (opts?: CreateMutationOptions<TOutput, TError, TInput, TContext>)
+		=> ReturnType<typeof createMutation<TOutput, TError, TInput, TContext>>
 }
 
 type UseTRPCSubscriptionOptions<TOutput, TError> = {
@@ -382,7 +382,7 @@ export function svelteQueryWrapper<TRouter extends AnyRouter>(
 					return createMutation({
 						...opts,
 						mutationKey: this.path,
-						mutationFn: () => target.mutate(input),
+						mutationFn: (data) => target.mutate(data),
 					})
 				} else if (procedure === ProcedureNames.subscribe) {
 					return useSubscription(target.subscribe, input, opts)
