@@ -17,6 +17,22 @@ pnpm install trpc-svelte-query-adapter @trpc/client @trpc/server @tanstact/svelt
 
 If you are using client-side Svelte, you would need to install `@trpc/server` as a `devDependency` using `--save-dev`.
 
+## Available Functions
+
+The following functions from `@trpc/react-query` are ported over:
+
+- `useQuery`
+- `useInfiniteQuery`
+- `useMutation`
+- `useSubscription`
+- `getQueryKey`
+- `useContext`
+- `useQueries`
+
+Currently, the main procedure names reflect those of `@trpc/react-query` as supposed to `@tanstack/svelte-query` to make it easier to cross-reference with `@trpc/react-query` during development. This is temporary and will be fixed in a future update.
+
+You can refer to <code>[tanstack-query docs](https://tanstack.com/query/latest/docs/react/overview)</code> and <code>[@trpc/react-query docs](https://trpc.io/docs/react)</code> for documentation on how to use them.
+
 ## Usage
 
 The following instructions assume the `tRPC` router to have the following procedures:
@@ -166,4 +182,4 @@ export const load = (async (event) => {
 ## Some Notes
 
 * This wrapper only supports `tRPC v10` onwards.
-* I am aware that the `tRPC` team is already working on their own, very similar [adapter](https://www.npmjs.com/package/trpc-svelte-query). This project is not linked to that in any way. This is made purely for fun and I fully expect this project to be dead whenever `tRPC` releases their adapter.
+* This project was made purely for fun and not linked to official `tRPC` or `tanstack-query` development in any way. If any official adapters of this sort were to be released, this project would most likely be discontinued.
