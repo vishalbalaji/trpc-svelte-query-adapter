@@ -273,7 +273,7 @@ function createUseContextProxy(client: any, queryClient: QueryClient) {
 				return queryClient.fetchInfiniteQuery({
 					...opts,
 					queryKey: getArrayQueryKey(this.path, input, 'infinite'),
-					queryFn: () => target.query(input),
+					queryFn: ({ pageParam }) => target.query({ ...input, cursor: pageParam }),
 				});
 			} else if (utilName === ContextProcedureNames.prefetch) {
 				const [opts] = rest;
@@ -289,7 +289,7 @@ function createUseContextProxy(client: any, queryClient: QueryClient) {
 				return queryClient.prefetchInfiniteQuery({
 					...opts,
 					queryKey: getArrayQueryKey(this.path, input, 'infinite'),
-					queryFn: () => target.query(input),
+					queryFn: ({ pageParam }) => target.query({ ...input, cursor: pageParam }),
 				});
 			} else if (utilName === ContextProcedureNames.refetch) {
 				return queryClient.refetchQueries(
@@ -376,7 +376,7 @@ export function svelteQueryWrapper<TRouter extends AnyRouter>(
 					return createInfiniteQuery({
 						...opts,
 						queryKey: getArrayQueryKey(this.path, input, 'infinite'),
-						queryFn: () => target.query(input),
+						queryFn: ({ pageParam }) => target.query({ ...input, cursor: pageParam }),
 					})
 				} else if (procedure === ProcedureNames.mutate) {
 					return createMutation({
