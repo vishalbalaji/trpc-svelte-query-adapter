@@ -1,5 +1,7 @@
 # `tRPC` - `svelte-query` Adapter
 
+> **NOTE:** The README on [npmjs](https://npmjs.com/) might not be fully up to date. Please refer to the [README on the Github Repo](https://github.com/vishalbalaji/trpc-svelte-query-adapter/#readme) for the latest setup instructions.
+
 This package provides an adapter to call `tRPC` procedures wrapped with <code>[@tanstack/svelte-query](https://tanstack.com/query/v4/docs/svelte/overview)</code>, similar to <code>[@trpc/react-query](https://trpc.io/docs/react)</code>. This is made possible using <code>[proxy-deep](https://www.npmjs.com/package/proxy-deep)</code>.
 
 ## Installation
@@ -12,7 +14,7 @@ npm install trpc-svelte-query-adapter @trpc/client @trpc/server @tanstact/svelte
 yarn add trpc-svelte-query-adapter @trpc/client @trpc/server @tanstact/svelte-query
 
 # pnpm
-pnpm install trpc-svelte-query-adapter @trpc/client @trpc/server @tanstact/svelte-query
+pnpm add trpc-svelte-query-adapter @trpc/client @trpc/server @tanstact/svelte-query
 ```
 
 If you are using client-side Svelte, you would need to install `@trpc/server` as a `devDependency` using `--save-dev`.
@@ -29,9 +31,9 @@ The following functions from `@trpc/react-query` are ported over:
 - `useContext`
 - `useQueries`
 
-Currently, the main procedure names reflect those of `@trpc/react-query` as supposed to `@tanstack/svelte-query` to make it easier to cross-reference with `@trpc/react-query` during development. This is temporary and will be fixed in a future update.
-
 You can refer to <code>[tanstack-query docs](https://tanstack.com/query/latest/docs/react/overview)</code> and <code>[@trpc/react-query docs](https://trpc.io/docs/react)</code> for documentation on how to use them.
+
+> **NOTE:** Currently, the main procedure names reflect those of `@trpc/react-query` as supposed to `@tanstack/svelte-query` to make it easier to cross-reference with `@trpc/react-query` during development. This is temporary and will be fixed in a future update.
 
 ## Usage
 
@@ -69,10 +71,10 @@ import { svelteQueryWrapper } from 'trpc-svelte-query-adapter';
 const client = createTRPCProxyClient<Router>({
   links: [
     httpBatchLink({
+	  // Replace this URL with that of your tRPC server
       url: 'http://localhost:5000/api/v1/trpc/',
     }),
   ],
-  transformer: null
 });
 
 export const trpc = svelteQueryWrapper<Router>(client);
@@ -98,9 +100,7 @@ export const trpc = svelteQueryWrapper<Router>(client);
 
 ### Sveltekit and SSR
 
-<!-- > **NOTE:** This package is currently not hosted on `npm`. If you want to try it, you would need to clone it locally and `npm link` to it. -->
-
-For Sveltekit, it is recommended that `tRPC` be set up using <code>[trpc-sveltekit](https://icflorescu.github.io/trpc-sveltekit/getting-started)</code>
+For Sveltekit, it is recommended that `tRPC` be set up using <code>[trpc-sveltekit](https://icflorescu.github.io/trpc-sveltekit/getting-started)</code>.
 
 1. Setup `@tanstack/svelte-query` as per [the ssr example in the svelte-query docs](https://tanstack.com/query/v4/docs/svelte/ssr#using-prefetchquery).
 2. Setup <code>[trpc-sveltekit](https://icflorescu.github.io/trpc-sveltekit/getting-started)</code> as per docs.
@@ -170,10 +170,10 @@ import { trpc } from '$lib/trpc/client'
 import type { PageLoad } from './$types'
 
 export const load = (async (event) => {
-  const { queryClient } = await event.parent()
+  const { queryClient } = await event.parent();
   const client = trpc(event, queryClient); // `queryClient` needs to be passed when initializing on the server.
 
-  const utils = client.useContext()
+  const utils = client.useContext();
 
   await utils.greeting.prefetch('foo') // This needs to be called for each query that is called in its corresponding `svelte` component.
 }) satisfies PageLoad
