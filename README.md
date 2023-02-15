@@ -8,13 +8,13 @@ This package provides an adapter to call `tRPC` procedures wrapped with <code>[@
 
 ```bash
 # npm
-npm install trpc-svelte-query-adapter @trpc/client @trpc/server @tanstact/svelte-query
+npm install trpc-svelte-query-adapter @trpc/client @trpc/server @tanstack/svelte-query
 
 # yarn
-yarn add trpc-svelte-query-adapter @trpc/client @trpc/server @tanstact/svelte-query
+yarn add trpc-svelte-query-adapter @trpc/client @trpc/server @tanstack/svelte-query
 
 # pnpm
-pnpm add trpc-svelte-query-adapter @trpc/client @trpc/server @tanstact/svelte-query
+pnpm add trpc-svelte-query-adapter @trpc/client @trpc/server @tanstack/svelte-query
 ```
 
 If you are using client-side Svelte, you would need to install `@trpc/server` as a `devDependency` using `--save-dev`.
