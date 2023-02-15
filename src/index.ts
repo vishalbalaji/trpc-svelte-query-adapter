@@ -143,7 +143,9 @@ type UseQueries<TClient, TError> = <TOpts extends CreateQueryOptionsForUseQuerie
 // Procedures
 const ProcedureNames = {
 	query: 'useQuery',
+	serverQuery: 'useServerQuery',
 	infiniteQuery: 'useInfiniteQuery',
+	serverInfiniteQuery: 'useServerInfiniteQuery',
 	mutate: 'useMutation',
 	subscribe: 'useSubscription',
 	queryKey: 'getQueryKey',
@@ -153,13 +155,17 @@ const ProcedureNames = {
 
 type UseQueryProcedure<TInput, TOutput, TError> = {
 	[ProcedureNames.query]: (input: TInput, opts?: CreateQueryOptions<TOutput, TError>)
-		=> ReturnType<typeof createQuery<TOutput, TError>>
+		=> ReturnType<typeof createQuery<TOutput, TError>>,
+	[ProcedureNames.serverQuery]: (input: TInput, opts?: CreateQueryOptions<TOutput, TError>)
+		=> Promise<() => ReturnType<typeof createQuery<TOutput, TError>>>,
 }
 
 type UseInfiniteQueryProcedure<TInput, TOutput, TError> = TInput extends { cursor?: any }
 	? {
 		[ProcedureNames.infiniteQuery]: (input: Omit<TInput, 'cursor'>, opts?: CreateInfiniteQueryOptions<TOutput, TError>)
-			=> ReturnType<typeof createInfiniteQuery<TOutput, TError>>
+			=> ReturnType<typeof createInfiniteQuery<TOutput, TError>>,
+		[ProcedureNames.serverInfiniteQuery]: (input: Omit<TInput, 'cursor'>, opts?: CreateInfiniteQueryOptions<TOutput, TError>)
+			=> Promise<() => ReturnType<typeof createInfiniteQuery<TOutput, TError>>>,
 	}
 	: {}
 
@@ -332,6 +338,88 @@ function createUseContextProxy(client: any, queryClient: QueryClient) {
 			throw new TypeError('contextMap[utilName] is not a function');
 		}
 	})
+}
+
+const procedures = {
+	[ProcedureNames.queryKey]: ({ path }) => {
+		return (input: any, opts: any) => getArrayQueryKey(path, input, opts);
+	},
+	[ProcedureNames.query]: ({ path, target }) => {
+		const targetFn = target.query;
+
+		return (input: any, opts: any) => {
+			return createQuery({
+				...opts,
+				queryKey: getArrayQueryKey(path, input, 'query'),
+				queryFn: () => targetFn(input),
+			});
+		}
+	},
+	[ProcedureNames.serverQuery]: ({ path, target }) => {
+		const targetFn = target.query;
+
+		return async (input: any, opts: any) => {
+			const initialData = await targetFn(input);
+			return () => createQuery({
+				...opts,
+				refetchOnMount: false,
+				queryKey: getArrayQueryKey(path, input, 'query'),
+				queryFn: () => targetFn(input),
+				initialData
+			});
+		}
+	},
+	[ProcedureNames.infiniteQuery]: ({ path, target }) => {
+		return (input: any, opts: any) => {
+			return createInfiniteQuery({
+				...opts,
+				queryKey: getArrayQueryKey(path, input, 'infinite'),
+				queryFn: ({ pageParam }) => target.query({ ...input, cursor: pageParam }),
+			});
+		}
+	},
+	[ProcedureNames.serverInfiniteQuery]: ({ path, target }) => {
+		const targetFn = target.query;
+
+		return async (input: any, opts: any) => {
+			const initialData = await targetFn(input);
+			return () => createInfiniteQuery({
+				...opts,
+				refetchOnMount: false,
+				queryKey: getArrayQueryKey(path, input, 'infinite'),
+				queryFn: ({ pageParam }) => target.query({ ...input, cursor: pageParam }),
+				initialData
+			});
+		}
+	}
+}
+
+export function tmp<TRouter extends AnyRouter>({
+	client,
+	queryClient,
+}: { client: CreateTRPCProxyClient<TRouter>, queryClient?: QueryClient }) {
+
+	type Client = typeof client;
+	type RouterError = TRPCClientErrorLike<TRouter>;
+	type ClientWithQuery = AddQueryPropTypes<Client, RouterError>;
+
+	return new DeepProxy({} as ClientWithQuery &
+		(ClientWithQuery extends Record<any, any> ?
+			{
+				useContext(): UseContext<Client, RouterError>,
+				useQueries: UseQueries<Client, RouterError>
+			} : {}),
+		{
+			get(_, key) {
+
+				if (procedures.hasOwnProperty(key)) {
+					const target = [...this.path].reduce((client, value) => client[value], client as Record<PropertyKey, any>)
+					return procedures[key]({ path: this.path, queryClient, target })
+				}
+				return this.nest(() => { })
+			}
+		}
+	);
 }
 
 export function svelteQueryWrapper<TRouter extends AnyRouter>(
