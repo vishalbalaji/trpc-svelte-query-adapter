@@ -87,7 +87,7 @@ type GetQueryKey<TInput = undefined> = {
 }
 
 
-// useContext
+// createContext
 const ContextProcedureNames = {
 	client: 'client',
 	fetch: 'fetch',
@@ -125,28 +125,28 @@ type AddContextPropTypes<TClient, TError> = {
 	: AddContextPropTypes<TClient[K], TError> & Pick<ContextProcedures, typeof ContextProcedureNames.invalidate>
 };
 
-type UseContext<TClient, TError> = AddContextPropTypes<OnlyQueries<TClient>, TError>
+type CreateContext<TClient, TError> = AddContextPropTypes<OnlyQueries<TClient>, TError>
 	& Pick<ContextProcedures, typeof ContextProcedureNames.invalidate>
 	& { [ContextProcedureNames.client]: TClient }
 
 
-// useQueries
+// createQueries
 type CreateQueryOptionsForCreateQueries<TInput, TError> =
 	Omit<CreateQueryOptions<TInput, TError>, 'context'>
 
-type UseQueriesRecord<TClient, TError> = { [K in keyof TClient]:
+type CreateQueriesRecord<TClient, TError> = { [K in keyof TClient]:
 	TClient[K] extends HasQuery
 	? (input: Parameters<TClient[K]['query']>[0], opts?: CreateQueryOptionsForCreateQueries<Awaited<ReturnType<TClient[K]['query']>>, TError>)
 		=> CreateQueryOptionsForCreateQueries<Awaited<ReturnType<TClient[K]['query']>>, TError>
-	: UseQueriesRecord<TClient[K], TError>
+	: CreateQueriesRecord<TClient[K], TError>
 }
 
-type UseQueries<TClient, TError> = <TOpts extends CreateQueryOptionsForCreateQueries<any, any>[]>(
-	queriesCallback: (t: UseQueriesRecord<OnlyQueries<TClient>, TError>) => readonly [...TOpts]
+type CreateQueries<TClient, TError> = <TOpts extends CreateQueryOptionsForCreateQueries<any, any>[]>(
+	queriesCallback: (t: CreateQueriesRecord<OnlyQueries<TClient>, TError>) => readonly [...TOpts]
 ) => CreateQueriesResult<TOpts>
 
-type UseServerQueries<TClient, TError> = <TOpts extends CreateQueryOptionsForCreateQueries<any, any>[]>(
-	queriesCallback: (t: UseQueriesRecord<OnlyQueries<TClient>, TError>) => readonly [...TOpts]
+type CreateServerQueries<TClient, TError> = <TOpts extends CreateQueryOptionsForCreateQueries<any, any>[]>(
+	queriesCallback: (t: CreateQueriesRecord<OnlyQueries<TClient>, TError>) => readonly [...TOpts]
 ) => Promise<() => CreateQueriesResult<TOpts>>
 
 // Procedures
@@ -163,14 +163,14 @@ const ProcedureNames = {
 	serverQueries: 'createServerQueries',
 } as const;
 
-type UseQueryProcedure<TInput, TOutput, TError> = {
+type CreateQueryProcedure<TInput, TOutput, TError> = {
 	[ProcedureNames.query]: (input: TInput, opts?: CreateQueryOptions<TOutput, TError>)
 		=> CreateQueryResult<TOutput, TError>,
 	[ProcedureNames.serverQuery]: (input: TInput, opts?: CreateQueryOptions<TOutput, TError>)
 		=> Promise<() => CreateQueryResult<TOutput, TError>>,
 }
 
-type UseInfiniteQueryProcedure<TInput, TOutput, TError> = TInput extends { cursor?: any }
+type CreateInfiniteQueryProcedure<TInput, TOutput, TError> = TInput extends { cursor?: any }
 	? {
 		[ProcedureNames.infiniteQuery]: (input: Omit<TInput, 'cursor'>, opts?: CreateInfiniteQueryOptions<TOutput, TError>)
 			=> CreateInfiniteQueryResult<TOutput, TError>,
@@ -179,14 +179,14 @@ type UseInfiniteQueryProcedure<TInput, TOutput, TError> = TInput extends { curso
 	}
 	: {}
 
-type QueryProcedures<TInput, TOutput, TError> = UseQueryProcedure<TInput, TOutput, TError> & UseInfiniteQueryProcedure<TInput, TOutput, TError> & GetQueryKey<TInput>
+type QueryProcedures<TInput, TOutput, TError> = CreateQueryProcedure<TInput, TOutput, TError> & CreateInfiniteQueryProcedure<TInput, TOutput, TError> & GetQueryKey<TInput>
 
-type UseMutationProcedure<TInput, TOutput, TError, TContext = unknown> = {
+type CreateMutationProcedure<TInput, TOutput, TError, TContext = unknown> = {
 	[ProcedureNames.mutate]: (opts?: CreateMutationOptions<TOutput, TError, TInput, TContext>)
 		=> CreateMutationResult<TOutput, TError, TInput, TContext>
 }
 
-type UseTRPCSubscriptionOptions<TOutput, TError> = {
+type CreateTRPCSubscriptionOptions<TOutput, TError> = {
 	enabled?: boolean
 	onStarted?: () => void
 	onData: (data: TOutput) => void
@@ -198,16 +198,16 @@ type GetSubscriptionOutput<TOpts> = TOpts extends unknown & Partial<infer A>
 	? Parameters<A['onData']>[0] : never
 	: never
 
-type UseSubscriptionProcedure<TInput, TOutput, TError> = {
-	[ProcedureNames.subscribe]: (input: TInput, opts?: UseTRPCSubscriptionOptions<TOutput, TError>)
+type CreateSubscriptionProcedure<TInput, TOutput, TError> = {
+	[ProcedureNames.subscribe]: (input: TInput, opts?: CreateTRPCSubscriptionOptions<TOutput, TError>)
 		=> void
 }
 
 type AddQueryPropTypes<TClient, TError> = TClient extends Record<any, any> ? {
 	[K in keyof TClient]:
 	TClient[K] extends HasQuery ? QueryProcedures<Parameters<TClient[K]['query']>[0], Awaited<ReturnType<TClient[K]['query']>>, TError>
-	: TClient[K] extends HasMutate ? UseMutationProcedure<Parameters<TClient[K]['mutate']>[0], Awaited<ReturnType<TClient[K]['mutate']>>, TError>
-	: TClient[K] extends HasSubscribe ? UseSubscriptionProcedure<Parameters<TClient[K]['subscribe']>[0], GetSubscriptionOutput<Parameters<TClient[K]['subscribe']>[1]>, TError>
+	: TClient[K] extends HasMutate ? CreateMutationProcedure<Parameters<TClient[K]['mutate']>[0], Awaited<ReturnType<TClient[K]['mutate']>>, TError>
+	: TClient[K] extends HasSubscribe ? CreateSubscriptionProcedure<Parameters<TClient[K]['subscribe']>[0], GetSubscriptionOutput<Parameters<TClient[K]['subscribe']>[1]>, TError>
 	: AddQueryPropTypes<TClient[K], TError> & GetQueryKey
 } : TClient;
 
@@ -479,13 +479,12 @@ export function svelteQueryWrapper<TRouter extends AnyRouter>({
 	return new DeepProxy({} as ClientWithQuery &
 		(ClientWithQuery extends Record<any, any> ?
 			{
-				createContext(): UseContext<Client, RouterError>,
-				createQueries: UseQueries<Client, RouterError>
-				createServerQueries: UseServerQueries<Client, RouterError>
+				createContext(): CreateContext<Client, RouterError>,
+				createQueries: CreateQueries<Client, RouterError>
+				createServerQueries: CreateServerQueries<Client, RouterError>
 			} : {}),
 	{
 		get(_, key) {
-
 			if (Object.hasOwn(procedures, key)) {
 				const target = [...this.path].reduce((client, value) => client[value], client as Record<PropertyKey, any>);
 				return procedures[key]({ path: this.path, target, queriesProxy, contextProxy });
