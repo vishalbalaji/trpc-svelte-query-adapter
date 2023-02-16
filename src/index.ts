@@ -386,14 +386,12 @@ const contextProcedures = {
 			});
 		}
 	},
-	[ContextProcedureNames.invalidate]: () => {
-		({ path, queryClient }) => {
-			return (input?: any, filters?: any, options?: any) => {
-				return queryClient.invalidateQueries({
-					...filters,
-					queryKey: getArrayQueryKey(path, input, 'any')
-				}, options);
-			}
+	[ContextProcedureNames.invalidate]: ({ path, queryClient }) => {
+		return (input?: any, filters?: any, options?: any) => {
+			return queryClient.invalidateQueries({
+				...filters,
+				queryKey: getArrayQueryKey(path, input, 'any')
+			}, options);
 		}
 	},
 	[ContextProcedureNames.refetch]: ({ path, queryClient }) => {
