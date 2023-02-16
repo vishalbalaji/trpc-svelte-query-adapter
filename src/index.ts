@@ -145,6 +145,10 @@ type UseQueries<TClient, TError> = <TOpts extends CreateQueryOptionsForCreateQue
 	queriesCallback: (t: UseQueriesRecord<OnlyQueries<TClient>, TError>) => readonly [...TOpts]
 ) => CreateQueriesResult<TOpts>
 
+type UseServerQueries<TClient, TError> = <TOpts extends CreateQueryOptionsForCreateQueries<any, any>[]>(
+	queriesCallback: (t: UseQueriesRecord<OnlyQueries<TClient>, TError>) => readonly [...TOpts]
+) => Promise<() => CreateQueriesResult<TOpts>>
+
 // Procedures
 const ProcedureNames = {
 	query: 'createQuery',
@@ -156,6 +160,7 @@ const ProcedureNames = {
 	queryKey: 'getQueryKey',
 	context: 'createContext',
 	queries: 'createQueries',
+	serverQueries: 'createServerQueries',
 } as const;
 
 type UseQueryProcedure<TInput, TOutput, TError> = {
@@ -438,6 +443,21 @@ const procedures = {
 			return createQueries(input(queriesProxy));
 		};
 	},
+	[ProcedureNames.serverQueries]: ({ path, queriesProxy }) => {
+		if (path.length !== 0) return;
+		return async (input: (...args: any[]) => any) => {
+			const queryKeys = await Promise.all(
+				input(queriesProxy).map(async (query: any) => {
+					return {
+						...query,
+						refetchOnMount: false,
+						initialData: await query.queryFn(),
+					};
+				})
+			);
+			return () => createQueries(queryKeys);
+		};
+	},
 	[ProcedureNames.context]: ({ path, contextProxy }) => {
 		if (path.length !== 0) return;
 		return () => contextProxy;
@@ -461,6 +481,7 @@ export function svelteQueryWrapper<TRouter extends AnyRouter>({
 			{
 				createContext(): UseContext<Client, RouterError>,
 				createQueries: UseQueries<Client, RouterError>
+				createServerQueries: UseServerQueries<Client, RouterError>
 			} : {}),
 	{
 		get(_, key) {
