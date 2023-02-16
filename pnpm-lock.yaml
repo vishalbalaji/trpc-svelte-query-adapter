@@ -1,9 +1,9 @@
 lockfileVersion: 5.4
 
 specifiers:
-  '@tanstack/svelte-query': ^4.24.4
-  '@trpc/client': ^10.10.0
-  '@trpc/server': ^10.10.0
+  '@tanstack/svelte-query': ^4.24.6
+  '@trpc/client': ^10.11.1
+  '@trpc/server': ^10.11.1
   '@typescript-eslint/eslint-plugin': ^5.52.0
   '@typescript-eslint/parser': ^5.52.0
   eslint: ^8.34.0
@@ -12,9 +12,9 @@ specifiers:
   typescript: ^4.9.5
 
 dependencies:
-  '@tanstack/svelte-query': 4.24.4_svelte@3.55.1
-  '@trpc/client': 10.10.0_@trpc+server@10.10.0
-  '@trpc/server': 10.10.0
+  '@tanstack/svelte-query': 4.24.6_svelte@3.55.1
+  '@trpc/client': 10.11.1_@trpc+server@10.11.1
+  '@trpc/server': 10.11.1
   proxy-deep: 3.1.1
   svelte: 3.55.1
 
@@ -84,29 +84,29 @@ packages:
       fastq: 1.15.0
     dev: true
 
-  /@tanstack/query-core/4.24.4:
-    resolution: {integrity: sha512-9dqjv9eeB6VHN7lD3cLo16ZAjfjCsdXetSAD5+VyKqLUvcKTL0CklGQRJu+bWzdrS69R6Ea4UZo8obHYZnG6aA==}
+  /@tanstack/query-core/4.24.6:
+    resolution: {integrity: sha512-Tfru6YTDTCpX7dKVwHp/sosw/dNjEdzrncduUjIkQxn7n7u+74HT2ZrGtwwrU6Orws4x7zp3FKRqBPWVVhpx9w==}
     dev: false
 
-  /@tanstack/svelte-query/4.24.4_svelte@3.55.1:
-    resolution: {integrity: sha512-B2N+nNPOe9wxZ01i3Ebvkc8vDX9ZDQTiaazXqpld7O27R+zhIBlk6MU8vNzPBDSKrhhl2kak8SwyJOExsVZQXA==}
+  /@tanstack/svelte-query/4.24.6_svelte@3.55.1:
+    resolution: {integrity: sha512-bBA2r8iH6jKy/oq4JDMRt3WOzZWuvIvRvXU9dE8RmtMZfm42yRcDBd7zNmoo8kNlNvhuLulx8zVh9B9mE++Bsw==}
     peerDependencies:
       svelte: ^3.54.0
     dependencies:
-      '@tanstack/query-core': 4.24.4
+      '@tanstack/query-core': 4.24.6
       svelte: 3.55.1
     dev: false
 
-  /@trpc/client/10.10.0_@trpc+server@10.10.0:
-    resolution: {integrity: sha512-HRVGkOsR4FIYpyQILP84HLbj6pRnLKgxy4AIelTf9d9TxD60M5bNhbR2Uz3hqNSb9a2ppaRJBLv7twlV9b4qHQ==}
+  /@trpc/client/10.11.1_@trpc+server@10.11.1:
+    resolution: {integrity: sha512-6aHY27YomzyUAlKhJE4jJulzDjc6vAKAKoWqAmoYbEEhApvyDrMo52bdYqqsukjxvA/L/uPhjOcPU5OsO+x+pA==}
     peerDependencies:
-      '@trpc/server': 10.10.0
+      '@trpc/server': 10.11.1
     dependencies:
-      '@trpc/server': 10.10.0
+      '@trpc/server': 10.11.1
     dev: false
 
-  /@trpc/server/10.10.0:
-    resolution: {integrity: sha512-tCTqcqBT+3nebYFTHtwM877qo5xQPtVlptxKdUzMVWleWT4lFTL4oddk45qVURToci2iMbVJjd4jQU9y9/XwlQ==}
+  /@trpc/server/10.11.1:
+    resolution: {integrity: sha512-7FnvuaNsSl6HLloh0a297McS4yjhbqg/bw1h/XOAKduNPUQwXNmJf48X1PAsD8ODtO1Rrjz9TeynJD7uCEn0xQ==}
     dev: false
 
   /@types/json-schema/7.0.11:
