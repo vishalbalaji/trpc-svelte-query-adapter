@@ -26,9 +26,13 @@ import {
 	InvalidateOptions,
 	QueryFilters,
 	ResetQueryFilters,
+	CreateQueryResult,
+	CreateInfiniteQueryResult,
+	CreateMutationResult,
 } from '@tanstack/svelte-query';
 
 import { onDestroy } from 'svelte';
+import { CreateQueriesResult } from '@tanstack/svelte-query/build/lib/createQueries';
 
 // CREDIT: https://stackoverflow.com/a/63448246
 type WithNevers<T, V> = { [K in keyof T]:
@@ -139,8 +143,7 @@ type UseQueriesRecord<TClient, TError> = { [K in keyof TClient]:
 
 type UseQueries<TClient, TError> = <TOpts extends CreateQueryOptionsForUseQueries<any, any>[]>(
 	queriesCallback: (t: UseQueriesRecord<OnlyQueries<TClient>, TError>) => readonly [...TOpts]
-) => ReturnType<typeof createQueries<TOpts>>
-
+) => CreateQueriesResult<TOpts>
 
 // Procedures
 const ProcedureNames = {
@@ -157,17 +160,17 @@ const ProcedureNames = {
 
 type UseQueryProcedure<TInput, TOutput, TError> = {
 	[ProcedureNames.query]: (input: TInput, opts?: CreateQueryOptions<TOutput, TError>)
-		=> ReturnType<typeof createQuery<TOutput, TError>>,
+		=> CreateQueryResult<TOutput, TError>,
 	[ProcedureNames.serverQuery]: (input: TInput, opts?: CreateQueryOptions<TOutput, TError>)
-		=> Promise<() => ReturnType<typeof createQuery<TOutput, TError>>>,
+		=> Promise<() => CreateQueryResult<TOutput, TError>>,
 }
 
 type UseInfiniteQueryProcedure<TInput, TOutput, TError> = TInput extends { cursor?: any }
 	? {
 		[ProcedureNames.infiniteQuery]: (input: Omit<TInput, 'cursor'>, opts?: CreateInfiniteQueryOptions<TOutput, TError>)
-			=> ReturnType<typeof createInfiniteQuery<TOutput, TError>>,
+			=> CreateInfiniteQueryResult<TOutput, TError>,
 		[ProcedureNames.serverInfiniteQuery]: (input: Omit<TInput, 'cursor'>, opts?: CreateInfiniteQueryOptions<TOutput, TError>)
-			=> Promise<() => ReturnType<typeof createInfiniteQuery<TOutput, TError>>>,
+			=> Promise<() => CreateInfiniteQueryResult<TOutput, TError>>,
 	}
 	: {}
 
@@ -175,7 +178,7 @@ type QueryProcedures<TInput, TOutput, TError> = UseQueryProcedure<TInput, TOutpu
 
 type UseMutationProcedure<TInput, TOutput, TError, TContext = unknown> = {
 	[ProcedureNames.mutate]: (opts?: CreateMutationOptions<TOutput, TError, TInput, TContext>)
-		=> ReturnType<typeof createMutation<TOutput, TError, TInput, TContext>>
+		=> CreateMutationResult<TOutput, TError, TInput, TContext>
 }
 
 type UseTRPCSubscriptionOptions<TOutput, TError> = {
