@@ -59,11 +59,11 @@ type QueryKey = [
 function getArrayQueryKey(
 	queryKey: string | [string] | [string, ...unknown[]] | unknown[],
 	input: unknown,
-	type: QueryType,
+	type: QueryType
 ): QueryKey {
 	const arrayPath = (typeof queryKey === 'string' ?
 		queryKey === '' ? [] : queryKey.split('.')
-		: queryKey) as [string]
+		: queryKey) as [string];
 
 	if (!input && (!type || type === 'any'))
 		// for `utils.invalidate()` to match all queries (including vanilla react-query)
@@ -102,7 +102,7 @@ const ContextProcedureNames = {
 	getData: 'getData',
 	setInfiniteData: 'setInfiniteData',
 	getInfiniteData: 'getInfiniteData',
-} as const
+} as const;
 
 type ContextProcedures<TInput = undefined, TOutput = undefined, TError = undefined> = {
 	[ContextProcedureNames.fetch](input: TInput, opts?: FetchQueryOptions<TInput, TError, TOutput>): Promise<TOutput>
@@ -156,7 +156,7 @@ const ProcedureNames = {
 	queryKey: 'getQueryKey',
 	context: 'useContext',
 	queries: 'useQueries',
-} as const
+} as const;
 
 type UseQueryProcedure<TInput, TOutput, TError> = {
 	[ProcedureNames.query]: (input: TInput, opts?: CreateQueryOptions<TOutput, TError>)
@@ -210,19 +210,19 @@ type AddQueryPropTypes<TClient, TError> = TClient extends Record<any, any> ? {
 function createUseQueriesProxy(client: any) {
 	return new DeepProxy({}, {
 		get() {
-			return this.nest(() => { })
+			return this.nest(() => { });
 		},
 		apply(_target, _thisArg, argList) {
-			const target = [...this.path].reduce((client, value) => client[value], client)
-			const [input, opts] = argList
+			const target = [...this.path].reduce((client, value) => client[value], client);
+			const [input, opts] = argList;
 
 			return {
 				...opts,
 				queryKey: getArrayQueryKey(this.path, input, 'query'),
 				queryFn: () => target.query(input),
-			}
-		}
-	})
+			};
+		},
+	});
 }
 
 const contextProcedures = {
@@ -233,7 +233,7 @@ const contextProcedures = {
 				queryKey: getArrayQueryKey(path, input, 'query'),
 				queryFn: () => target.query(input),
 			});
-		}
+		};
 	},
 	[ContextProcedureNames.prefetch]: ({ path, queryClient, target }) => {
 		return (input: any, opts?: any) => {
@@ -242,7 +242,7 @@ const contextProcedures = {
 				queryKey: getArrayQueryKey(path, input, 'query'),
 				queryFn: () => target.query(input),
 			});
-		}
+		};
 	},
 	[ContextProcedureNames.fetchInfinite]: ({ path, queryClient, target }) => {
 		return (input: any, opts?: any) => {
@@ -251,7 +251,7 @@ const contextProcedures = {
 				queryKey: getArrayQueryKey(path, input, 'infinite'),
 				queryFn: ({ pageParam }) => target.query({ ...input, cursor: pageParam }),
 			});
-		}
+		};
 	},
 	[ContextProcedureNames.prefetchInfinite]: ({ path, queryClient, target }) => {
 		return (input: any, opts?: any) => {
@@ -260,15 +260,15 @@ const contextProcedures = {
 				queryKey: getArrayQueryKey(path, input, 'infinite'),
 				queryFn: ({ pageParam }) => target.query({ ...input, cursor: pageParam }),
 			});
-		}
+		};
 	},
 	[ContextProcedureNames.invalidate]: ({ path, queryClient }) => {
 		return (input?: any, filters?: any, options?: any) => {
 			return queryClient.invalidateQueries({
 				...filters,
-				queryKey: getArrayQueryKey(path, input, 'any')
+				queryKey: getArrayQueryKey(path, input, 'any'),
 			}, options);
-		}
+		};
 	},
 	[ContextProcedureNames.refetch]: ({ path, queryClient }) => {
 		return (input?: any, filters?: any, options?: any) => {
@@ -276,7 +276,7 @@ const contextProcedures = {
 				...filters,
 				queryKey: getArrayQueryKey(path, input, 'any'),
 			}, options);
-		}
+		};
 	},
 	[ContextProcedureNames.cancel]: ({ path, queryClient }) => {
 		return (input?: any, filters?: any, options?: any) => {
@@ -284,8 +284,8 @@ const contextProcedures = {
 				getArrayQueryKey(path, input, 'any'),
 				filters,
 				options
-			)
-		}
+			);
+		};
 	},
 	[ContextProcedureNames.reset]: ({ queryClient, path }) => {
 		return (input?: any, filters?: any, options?: any) => {
@@ -293,8 +293,8 @@ const contextProcedures = {
 				getArrayQueryKey(path, input, 'any'),
 				filters,
 				options
-			)
-		}
+			);
+		};
 	},
 	[ContextProcedureNames.setData]: ({ queryClient, path }) => {
 		return (input: any, updater: any, options?: any) => {
@@ -302,8 +302,8 @@ const contextProcedures = {
 				getArrayQueryKey(path, input, 'query'),
 				updater,
 				options
-			)
-		}
+			);
+		};
 	},
 	[ContextProcedureNames.setInfiniteData]: ({ queryClient, path }) => {
 		return (input: any, updater: any, options?: any) => {
@@ -311,26 +311,26 @@ const contextProcedures = {
 				getArrayQueryKey(path, input, 'infinite'),
 				updater,
 				options
-			)
-		}
+			);
+		};
 	},
 	[ContextProcedureNames.getData]: ({ queryClient, path }) => {
 		return (input?: any, filters?: any) => {
 			return queryClient.getQueryData(
 				getArrayQueryKey(path, input, 'query'),
 				filters
-			)
-		}
+			);
+		};
 	},
 	[ContextProcedureNames.getInfiniteData]: ({ queryClient, path }) => {
 		return (input?: any, filters?: any) => {
 			return queryClient.getQueryData(
 				getArrayQueryKey(path, input, 'infinite'),
 				filters
-			)
-		}
+			);
+		};
 	},
-}
+};
 
 function createUseContextProxy(client: any, queryClient: QueryClient) {
 	return new DeepProxy({}, {
@@ -338,11 +338,11 @@ function createUseContextProxy(client: any, queryClient: QueryClient) {
 			if (key === ContextProcedureNames.client) return client;
 
 			if (contextProcedures.hasOwnProperty(key)) {
-				const target = [...this.path].reduce((client, value) => client[value], client as Record<PropertyKey, any>)
-				return contextProcedures[key]({ path: this.path, target, queryClient })
+				const target = [...this.path].reduce((client, value) => client[value], client as Record<PropertyKey, any>);
+				return contextProcedures[key]({ path: this.path, target, queryClient });
 			}
 
-			return this.nest(() => { })
+			return this.nest(() => { });
 		},
 	});
 }
@@ -360,7 +360,7 @@ const procedures = {
 				queryKey: getArrayQueryKey(path, input, 'query'),
 				queryFn: () => targetFn(input),
 			});
-		}
+		};
 	},
 	[ProcedureNames.serverQuery]: ({ path, target }) => {
 		const targetFn = target.query;
@@ -372,9 +372,9 @@ const procedures = {
 				refetchOnMount: false,
 				queryKey: getArrayQueryKey(path, input, 'query'),
 				queryFn: () => targetFn(input),
-				initialData
+				initialData,
 			});
-		}
+		};
 	},
 	[ProcedureNames.infiniteQuery]: ({ path, target }) => {
 		return (input: any, opts?: any) => {
@@ -383,7 +383,7 @@ const procedures = {
 				queryKey: getArrayQueryKey(path, input, 'infinite'),
 				queryFn: ({ pageParam }) => target.query({ ...input, cursor: pageParam }),
 			});
-		}
+		};
 	},
 	[ProcedureNames.serverInfiniteQuery]: ({ path, target }) => {
 		const targetFn = target.query;
@@ -395,9 +395,9 @@ const procedures = {
 				refetchOnMount: false,
 				queryKey: getArrayQueryKey(path, input, 'infinite'),
 				queryFn: ({ pageParam }) => target.query({ ...input, cursor: pageParam }),
-				initialData
+				initialData,
 			});
-		}
+		};
 	},
 	[ProcedureNames.mutate]: ({ path, target }) => {
 		return (opts?: any) => {
@@ -405,8 +405,8 @@ const procedures = {
 				...opts,
 				mutationKey: path,
 				mutationFn: (data) => target.mutate(data),
-			})
-		}
+			});
+		};
 	},
 	[ProcedureNames.subscribe]: ({ target }) => {
 		return (input: any, opts?: any) => {
@@ -423,26 +423,26 @@ const procedures = {
 				},
 				onError: (err: any) => {
 					if (!isStopped) opts.onError?.(err);
-				}
-			})
+				},
+			});
 
 			return onDestroy(() => {
 				isStopped = true;
 				subscription.unsubscribe();
-			})
-		}
+			});
+		};
 	},
 	[ProcedureNames.queries]: ({ path, queriesProxy }) => {
 		if (path.length !== 0) return;
 		return (input: (...args: any[]) => any) => {
-			return createQueries(input(queriesProxy))
-		}
+			return createQueries(input(queriesProxy));
+		};
 	},
 	[ProcedureNames.context]: ({ path, contextProxy }) => {
 		if (path.length !== 0) return;
 		return () => contextProxy;
 	},
-}
+};
 
 export function svelteQueryWrapper<TRouter extends AnyRouter>({
 	client,
@@ -462,15 +462,15 @@ export function svelteQueryWrapper<TRouter extends AnyRouter>({
 				useContext(): UseContext<Client, RouterError>,
 				useQueries: UseQueries<Client, RouterError>
 			} : {}),
-		{
-			get(_, key) {
+	{
+		get(_, key) {
 
-				if (procedures.hasOwnProperty(key)) {
-					const target = [...this.path].reduce((client, value) => client[value], client as Record<PropertyKey, any>)
-					return procedures[key]({ path: this.path, target, queriesProxy, contextProxy })
-				}
-				return this.nest(() => { })
+			if (procedures.hasOwnProperty(key)) {
+				const target = [...this.path].reduce((client, value) => client[value], client as Record<PropertyKey, any>);
+				return procedures[key]({ path: this.path, target, queriesProxy, contextProxy });
 			}
-		}
+			return this.nest(() => { });
+		},
+	}
 	);
 }
