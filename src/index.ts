@@ -131,31 +131,31 @@ type UseContext<TClient, TError> = AddContextPropTypes<OnlyQueries<TClient>, TEr
 
 
 // useQueries
-type CreateQueryOptionsForUseQueries<TInput, TError> =
+type CreateQueryOptionsForCreateQueries<TInput, TError> =
 	Omit<CreateQueryOptions<TInput, TError>, 'context'>
 
 type UseQueriesRecord<TClient, TError> = { [K in keyof TClient]:
 	TClient[K] extends HasQuery
-	? (input: Parameters<TClient[K]['query']>[0], opts?: CreateQueryOptionsForUseQueries<Awaited<ReturnType<TClient[K]['query']>>, TError>)
-		=> CreateQueryOptionsForUseQueries<Awaited<ReturnType<TClient[K]['query']>>, TError>
+	? (input: Parameters<TClient[K]['query']>[0], opts?: CreateQueryOptionsForCreateQueries<Awaited<ReturnType<TClient[K]['query']>>, TError>)
+		=> CreateQueryOptionsForCreateQueries<Awaited<ReturnType<TClient[K]['query']>>, TError>
 	: UseQueriesRecord<TClient[K], TError>
 }
 
-type UseQueries<TClient, TError> = <TOpts extends CreateQueryOptionsForUseQueries<any, any>[]>(
+type UseQueries<TClient, TError> = <TOpts extends CreateQueryOptionsForCreateQueries<any, any>[]>(
 	queriesCallback: (t: UseQueriesRecord<OnlyQueries<TClient>, TError>) => readonly [...TOpts]
 ) => CreateQueriesResult<TOpts>
 
 // Procedures
 const ProcedureNames = {
-	query: 'useQuery',
-	serverQuery: 'useServerQuery',
-	infiniteQuery: 'useInfiniteQuery',
-	serverInfiniteQuery: 'useServerInfiniteQuery',
-	mutate: 'useMutation',
-	subscribe: 'useSubscription',
+	query: 'createQuery',
+	serverQuery: 'createServerQuery',
+	infiniteQuery: 'createInfiniteQuery',
+	serverInfiniteQuery: 'createServerInfiniteQuery',
+	mutate: 'createMutation',
+	subscribe: 'createSubscription',
 	queryKey: 'getQueryKey',
-	context: 'useContext',
-	queries: 'useQueries',
+	context: 'createContext',
+	queries: 'createQueries',
 } as const;
 
 type UseQueryProcedure<TInput, TOutput, TError> = {
@@ -207,7 +207,7 @@ type AddQueryPropTypes<TClient, TError> = TClient extends Record<any, any> ? {
 } : TClient;
 
 // Implementation
-function createUseQueriesProxy(client: any) {
+function createQueriesProxy(client: any) {
 	return new DeepProxy({}, {
 		get() {
 			return this.nest(() => { });
@@ -332,7 +332,7 @@ const contextProcedures = {
 	},
 };
 
-function createUseContextProxy(client: any, queryClient: QueryClient) {
+function createContextProxy(client: any, queryClient: QueryClient) {
 	return new DeepProxy({}, {
 		get(_target, key, _receiver) {
 			if (key === ContextProcedureNames.client) return client;
@@ -453,14 +453,14 @@ export function svelteQueryWrapper<TRouter extends AnyRouter>({
 	type RouterError = TRPCClientErrorLike<TRouter>;
 	type ClientWithQuery = AddQueryPropTypes<Client, RouterError>;
 
-	const queriesProxy = createUseQueriesProxy(client);
-	const contextProxy = createUseContextProxy(client, queryClient ?? useQueryClient());
+	const queriesProxy = createQueriesProxy(client);
+	const contextProxy = createContextProxy(client, queryClient ?? useQueryClient());
 
 	return new DeepProxy({} as ClientWithQuery &
 		(ClientWithQuery extends Record<any, any> ?
 			{
-				useContext(): UseContext<Client, RouterError>,
-				useQueries: UseQueries<Client, RouterError>
+				createContext(): UseContext<Client, RouterError>,
+				createQueries: UseQueries<Client, RouterError>
 			} : {}),
 	{
 		get(_, key) {
