@@ -337,7 +337,7 @@ function createUseContextProxy(client: any, queryClient: QueryClient) {
 		get(_target, key, _receiver) {
 			if (key === ContextProcedureNames.client) return client;
 
-			if (contextProcedures.hasOwnProperty(key)) {
+			if (Object.hasOwn(contextProcedures, key)) {
 				const target = [...this.path].reduce((client, value) => client[value], client as Record<PropertyKey, any>);
 				return contextProcedures[key]({ path: this.path, target, queryClient });
 			}
@@ -465,7 +465,7 @@ export function svelteQueryWrapper<TRouter extends AnyRouter>({
 	{
 		get(_, key) {
 
-			if (procedures.hasOwnProperty(key)) {
+			if (Object.hasOwn(procedures, key)) {
 				const target = [...this.path].reduce((client, value) => client[value], client as Record<PropertyKey, any>);
 				return procedures[key]({ path: this.path, target, queriesProxy, contextProxy });
 			}
