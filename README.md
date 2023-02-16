@@ -201,12 +201,12 @@ These procedures can be used as such:
 
 ```typescript
 // +page.ts
-import { trpcWithQuery } from '$lib/trpc/client';
+import { trpc } from '$lib/trpc/client';
 import type { PageLoad } from './$types';
 
 export const load = (async (event) => {
   const { queryClient } = await event.parent();
-  const client = trpcWithQuery(event, queryClient);
+  const client = trpc(event, queryClient);
   
   return {
     foo: client.greeting.createServerQuery('foo'),
