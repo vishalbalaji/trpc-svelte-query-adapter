@@ -391,6 +391,44 @@ const procedures = {
 				initialData
 			});
 		}
+	},
+	[ProcedureNames.mutate]: ({ path, target }) => {
+		return (opts: any) => {
+			return createMutation({
+				...opts,
+				mutationKey: path,
+				mutationFn: (data) => target.mutate(data),
+			})
+		}
+	},
+	[ProcedureNames.subscribe]: ({ target }) => {
+		return (input: any, opts: any) => {
+			const enabled = opts?.enabled ?? true;
+			if (!enabled) return;
+
+			let isStopped = false;
+			const subscription = target.subscribe(input, {
+				onStarted: () => {
+					if (!isStopped) opts.onStarted?.();
+				},
+				onData: (data: any) => {
+					if (!isStopped) opts.onData?.(data);
+				},
+				onError: (err: any) => {
+					if (!isStopped) opts.onError?.(err);
+				}
+			})
+
+			return onDestroy(() => {
+				isStopped = true;
+				subscription.unsubscribe();
+			})
+		}
+	},
+	[ProcedureNames.queries]: ({ useQueriesProxy }) => {
+		return (input: (...args: any[]) => any) => {
+			return createQueries(input(useQueriesProxy))
+		}
 	}
 }
 
@@ -403,6 +441,8 @@ export function tmp<TRouter extends AnyRouter>({
 	type RouterError = TRPCClientErrorLike<TRouter>;
 	type ClientWithQuery = AddQueryPropTypes<Client, RouterError>;
 
+	const useQueriesProxy = createUseQueriesProxy(client);
+
 	return new DeepProxy({} as ClientWithQuery &
 		(ClientWithQuery extends Record<any, any> ?
 			{
@@ -414,7 +454,7 @@ export function tmp<TRouter extends AnyRouter>({
 
 				if (procedures.hasOwnProperty(key)) {
 					const target = [...this.path].reduce((client, value) => client[value], client as Record<PropertyKey, any>)
-					return procedures[key]({ path: this.path, queryClient, target })
+					return procedures[key]({ path: this.path, queryClient, target, useQueriesProxy })
 				}
 				return this.nest(() => { })
 			}
