@@ -79,7 +79,7 @@ import { svelteQueryWrapper } from 'trpc-svelte-query-adapter';
 const client = createTRPCProxyClient<Router>({
   links: [
     httpBatchLink({
-	  // Replace this URL with that of your tRPC server
+    // Replace this URL with that of your tRPC server
       url: 'http://localhost:5000/api/v1/trpc/',
     }),
   ],
@@ -177,7 +177,7 @@ import type { QueryClient } from '@tanstack/svelte-query';
 const client = createTRPCProxyClient<Router>({
   links: [
     httpBatchLink({
-	  // Replace this URL with that of your tRPC server
+    // Replace this URL with that of your tRPC server
       url: 'http://localhost:5000/api/v1/trpc/',
     }),
   ],
@@ -185,15 +185,15 @@ const client = createTRPCProxyClient<Router>({
 
 export function trpc(queryClient?: QueryClient) {
   svelteQueryWrapper<Router>({
-	  client,
-	  queryClient
+    client,
+    queryClient
   });
 };
 ```
 
 #### Server-Side Query Pre-Fetching
 
-This adapter provides 3 additional procedures: `createServerQuery`, `createServerInfiniteQuery` and `createServerQueries`, which can be used to call their counterpart procedures in a `load` function in either a `+(page/layout).ts`. These procedures return a `promise` and therefore cannot only really be called on the server.
+This adapter provides 3 additional procedures: `createServerQuery`, `createServerInfiniteQuery` and `createServerQueries`, which can be used to call their counterpart procedures in the `load` function in either a `+page.ts` or `+layout.ts`. These procedures return a `promise` and therefore can only really be called on the server.
 
 These procedures can be used as such:
 
