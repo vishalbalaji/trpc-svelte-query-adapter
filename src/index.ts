@@ -80,11 +80,11 @@ function getArrayQueryKey(
 }
 
 type GetQueryKey<TInput = undefined> = {
-	getQueryKey:
+	[ProcedureNames.queryKey]:
 	TInput extends undefined
 	? () => QueryKey
 	: (input: TInput, type?: QueryType) => QueryKey
-}
+} & {}
 
 
 // createContext
@@ -105,17 +105,64 @@ const ContextProcedureNames = {
 } as const;
 
 type ContextProcedures<TInput = undefined, TOutput = undefined, TError = undefined> = {
+	/**
+	 * @link https://tanstack.com/query/v4/docs/reference/QueryClient#queryclientfetchquery
+	 */
 	[ContextProcedureNames.fetch](input: TInput, opts?: FetchQueryOptions<TInput, TError, TOutput>): Promise<TOutput>
-	[ContextProcedureNames.prefetch](input: TInput, opts?: FetchQueryOptions<TInput, TError, TOutput>): Promise<void>
+
+	/**
+	 * @link https://tanstack.com/query/v4/docs/reference/QueryClient#queryclientfetchinfinitequery
+	 */
 	[ContextProcedureNames.fetchInfinite](input: TInput, opts?: FetchInfiniteQueryOptions<TInput, TError, TOutput>): Promise<InfiniteData<TOutput>>
+
+	/**
+	 * @link https://tanstack.com/query/v4/docs/reference/QueryClient#queryclientprefetchquery
+	 */
+	[ContextProcedureNames.prefetch](input: TInput, opts?: FetchQueryOptions<TInput, TError, TOutput>): Promise<void>
+
+	/**
+	 * @link https://tanstack.com/query/v4/docs/reference/QueryClient#queryclientprefetchinfinitequery
+	 */
 	[ContextProcedureNames.prefetchInfinite](input: TInput, opts?: FetchInfiniteQueryOptions<TInput, TError, TOutput>): Promise<void>
+
+	/**
+	 * @link https://tanstack.com/query/v4/docs/reference/QueryClient#queryclientinvalidatequeries
+	 */
 	[ContextProcedureNames.invalidate](input?: TInput, filters?: InvalidateQueryFilters, options?: InvalidateOptions): Promise<void>
+
+	/**
+	 * @link https://tanstack.com/query/v4/docs/reference/QueryClient#queryclientrefetchqueries
+	 */
 	[ContextProcedureNames.refetch](input?: TInput, filters?: RefetchQueryFilters, options?: RefetchOptions): Promise<void>
+
+	/**
+	 * @link https://tanstack.com/query/v4/docs/reference/QueryClient#queryclientcancelqueries
+	 */
 	[ContextProcedureNames.cancel](input?: TInput, filters?: QueryFilters, options?: CancelOptions): Promise<void>
+
+	/**
+	 * @link https://tanstack.com/query/v4/docs/reference/QueryClient#queryclientresetqueries
+	 */
 	[ContextProcedureNames.reset](input?: TInput, filters?: ResetQueryFilters, options?: ResetOptions): Promise<void>
+
+	/**
+	 * @link https://tanstack.com/query/v4/docs/reference/QueryClient#queryclientsetquerydata
+	 */
 	[ContextProcedureNames.setData](input: TInput, updater: Updater<TOutput | undefined, TOutput | undefined>, options?: SetDataOptions): void
+
+	/**
+	 * @link https://tanstack.com/query/v4/docs/reference/QueryClient#queryclientsetquerydata
+	 */
 	[ContextProcedureNames.setInfiniteData](input: TInput, updater: Updater<InfiniteData<TOutput> | undefined, InfiniteData<TOutput> | undefined>, options?: SetDataOptions): void
+
+	/**
+	 * @link https://tanstack.com/query/v4/docs/reference/QueryClient#queryclientgetquerydata
+	 */
 	[ContextProcedureNames.getData](input?: TInput, filters?: QueryFilters): TOutput | undefined
+
+	/**
+	 * @link https://tanstack.com/query/v4/docs/reference/QueryClient#queryclientgetquerydata
+	 */
 	[ContextProcedureNames.getInfiniteData](input?: TInput, filters?: QueryFilters): InfiniteData<TOutput> | undefined
 }
 
@@ -168,23 +215,23 @@ type CreateQueryProcedure<TInput, TOutput, TError> = {
 		=> CreateQueryResult<TOutput, TError>,
 	[ProcedureNames.serverQuery]: (input: TInput, opts?: CreateQueryOptions<TOutput, TError>)
 		=> Promise<() => CreateQueryResult<TOutput, TError>>,
-}
+} & {}
 
-type CreateInfiniteQueryProcedure<TInput, TOutput, TError> = TInput extends { cursor?: any }
+type CreateInfiniteQueryProcedure<TInput, TOutput, TError> = (TInput extends { cursor?: any }
 	? {
 		[ProcedureNames.infiniteQuery]: (input: Omit<TInput, 'cursor'>, opts?: CreateInfiniteQueryOptions<TOutput, TError>)
 			=> CreateInfiniteQueryResult<TOutput, TError>,
 		[ProcedureNames.serverInfiniteQuery]: (input: Omit<TInput, 'cursor'>, opts?: CreateInfiniteQueryOptions<TOutput, TError>)
 			=> Promise<() => CreateInfiniteQueryResult<TOutput, TError>>,
 	}
-	: {}
+	: {}) & {}
 
-type QueryProcedures<TInput, TOutput, TError> = CreateQueryProcedure<TInput, TOutput, TError> & CreateInfiniteQueryProcedure<TInput, TOutput, TError> & GetQueryKey<TInput>
+type QueryProcedures<TInput, TOutput, TError> = GetQueryKey<TInput> & CreateQueryProcedure<TInput, TOutput, TError> & CreateInfiniteQueryProcedure<TInput, TOutput, TError>
 
 type CreateMutationProcedure<TInput, TOutput, TError, TContext = unknown> = {
 	[ProcedureNames.mutate]: (opts?: CreateMutationOptions<TOutput, TError, TInput, TContext>)
 		=> CreateMutationResult<TOutput, TError, TInput, TContext>
-}
+} & {}
 
 type CreateTRPCSubscriptionOptions<TOutput, TError> = {
 	enabled?: boolean
@@ -201,16 +248,15 @@ type GetSubscriptionOutput<TOpts> = TOpts extends unknown & Partial<infer A>
 type CreateSubscriptionProcedure<TInput, TOutput, TError> = {
 	[ProcedureNames.subscribe]: (input: TInput, opts?: CreateTRPCSubscriptionOptions<TOutput, TError>)
 		=> void
-}
+} & {}
 
 type AddQueryPropTypes<TClient, TError> = TClient extends Record<any, any> ? {
 	[K in keyof TClient]:
-	TClient[K] extends HasQuery ? QueryProcedures<Parameters<TClient[K]['query']>[0], Awaited<ReturnType<TClient[K]['query']>>, TError>
+	TClient[K] extends HasQuery ? QueryProcedures<Parameters<TClient[K]['query']>[0], Awaited<ReturnType<TClient[K]['query']>>, TError> & {}
 	: TClient[K] extends HasMutate ? CreateMutationProcedure<Parameters<TClient[K]['mutate']>[0], Awaited<ReturnType<TClient[K]['mutate']>>, TError>
 	: TClient[K] extends HasSubscribe ? CreateSubscriptionProcedure<Parameters<TClient[K]['subscribe']>[0], GetSubscriptionOutput<Parameters<TClient[K]['subscribe']>[1]>, TError>
-	: AddQueryPropTypes<TClient[K], TError> & GetQueryKey
+	: GetQueryKey & AddQueryPropTypes<TClient[K], TError>
 } : TClient;
-
 // Implementation
 function createQueriesProxy(client: any) {
 	return new DeepProxy({}, {
@@ -479,9 +525,9 @@ export function svelteQueryWrapper<TRouter extends AnyRouter>({
 	return new DeepProxy({} as ClientWithQuery &
 		(ClientWithQuery extends Record<any, any> ?
 			{
-				createContext(): CreateContext<Client, RouterError>,
-				createQueries: CreateQueries<Client, RouterError>
-				createServerQueries: CreateServerQueries<Client, RouterError>
+				[ProcedureNames.context](): CreateContext<Client, RouterError>,
+				[ProcedureNames.queries]: CreateQueries<Client, RouterError>
+				[ProcedureNames.serverQueries]: CreateServerQueries<Client, RouterError>
 			} : {}),
 	{
 		get(_, key) {
