@@ -79,12 +79,17 @@ function getArrayQueryKey(
 	];
 }
 
-type GetQueryKey<TInput = undefined> = {
-	[ProcedureNames.queryKey]:
-	TInput extends undefined
-	? () => QueryKey
-	: (input: TInput, type?: QueryType) => QueryKey
-} & {}
+type GetQueryKey<TInput = undefined> = TInput extends undefined
+	? {
+		[ProcedureNames.queryKey]: () => QueryKey
+	}
+	: {
+		/**
+		 * Method to extract the query key for a procedure
+		 * @param type - defaults to `any`
+		 */
+		[ProcedureNames.queryKey]: (input: TInput, type?: QueryType) => QueryKey
+	} & {}
 
 
 // createContext
@@ -522,14 +527,14 @@ export function svelteQueryWrapper<TRouter extends AnyRouter>({
 	const queriesProxy = createQueriesProxy(client);
 	const contextProxy = createContextProxy(client, queryClient ?? useQueryClient());
 
-	return new DeepProxy({} as ClientWithQuery &
-		(ClientWithQuery extends Record<any, any> ?
-			{
-				[ProcedureNames.context](): CreateContext<Client, RouterError>,
-				[ProcedureNames.queries]: CreateQueries<Client, RouterError>
-				[ProcedureNames.serverQueries]: CreateServerQueries<Client, RouterError>
-			} : {}),
-	{
+	return new DeepProxy({} as ClientWithQuery & (
+		ClientWithQuery extends Record<any, any> ?
+		{
+			[ProcedureNames.context](): CreateContext<Client, RouterError>,
+			[ProcedureNames.queries]: CreateQueries<Client, RouterError>
+			[ProcedureNames.serverQueries]: CreateServerQueries<Client, RouterError>
+		} : {}
+	), {
 		get(_, key) {
 			if (Object.hasOwn(procedures, key)) {
 				const target = [...this.path].reduce((client, value) => client[value], client as Record<PropertyKey, any>);
