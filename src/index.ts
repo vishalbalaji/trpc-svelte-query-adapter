@@ -427,11 +427,17 @@ const procedures = {
 				queryFn: () => targetFn(input),
 			};
 
-			await queryClient.prefetchQuery(query);
+			const cache = queryClient.getQueryCache().find(query.queryKey);
+			if (!cache) {
+				await queryClient.prefetchQuery(query);
+			}
+
 			return () => createQuery({
 				...opts,
 				...query,
-				refetchOnMount: false,
+				...(!cache ?
+					{ refetchOnMount: opts.refetchOnMount ?? false } : {}
+				),
 			});
 		};
 	},
@@ -453,11 +459,17 @@ const procedures = {
 				queryFn: ({ pageParam }) => targetFn({ ...input, cursor: pageParam }),
 			};
 
-			await queryClient.prefetchInfiniteQuery(query);
+			const cache = queryClient.getQueryCache().find(query.queryKey);
+			if (!cache) {
+				await queryClient.prefetchInfiniteQuery(query);
+			}
+
 			return () => createInfiniteQuery({
 				...opts,
 				...query,
-				refetchOnMount: false,
+				...(!cache ?
+					{ refetchOnMount: opts.refetchOnMount ?? false } : {}
+				),
 			});
 		};
 	},
@@ -508,10 +520,16 @@ const procedures = {
 		return async (input: (...args: any[]) => any) => {
 			const queryKeys = await Promise.all(
 				input(proxy).map(async (query: any) => {
-					await queryClient.prefetchQuery(query);
+					const cache = queryClient.getQueryCache().find(query.queryKey);
+
+					if (!cache) {
+						await queryClient.prefetchQuery(query);
+					}
 					return {
 						...query,
-						refetchOnMount: false,
+						...(!cache ?
+							{ refetchOnMount: query.refetchOnMount ?? false } : {}
+						),
 					};
 				})
 			);
