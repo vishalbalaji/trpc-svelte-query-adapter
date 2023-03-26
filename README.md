@@ -1,6 +1,8 @@
 # `tRPC` - `svelte-query` Adapter
 
-***Now with automatic server-side query pre-fetching!... Kind of.***
+[![NPM version][npm-image]][npm-url]
+[![License][license-image]][license-url]
+[![Last commit][last-commit-image]][repo-url]
 
 > **NOTE:** The README on [npmjs](https://npmjs.com/trpc-svelte-query-adapter) might not be fully up to date. Please refer to the [README on the Github Repo](https://github.com/vishalbalaji/trpc-svelte-query-adapter/#readme) for the latest setup instructions.
 
@@ -196,6 +198,8 @@ Which can then be initialized and used in the way that it is described [in its d
 
 This adapter provides 3 additional procedures: `createServerQuery`, `createServerInfiniteQuery` and `createServerQueries`, which can be used to call their counterpart procedures in the `load` function in either a `+page.ts` or `+layout.ts`. These procedures return a `promise` and therefore can only really be called on the server.
 
+By default, these 3 procedures will pre-fetch the data required to pre-render the page on the server. However, if you wish to disable this behaviour on certain queries, you can do so by setting the `ssr` option to `false`.
+
 These procedures can be used as such:
 
 > **NOTE:** You can await the procedures first, but it is better to pass the promises directly as SvelteKit automatically resolves all these promises at the same time. [This excellent video by **Huntabyte**](https://www.youtube.com/watch?v=Ymk22rD8Lb4) explains this in detail.
@@ -213,7 +217,7 @@ export const load = (async (event) => {
   return {
     foo: client.greeting.createServerQuery('foo'),
     queries: client.createServerQueries((t) =>
-      ["hi", "hello"].map((name) => t.greeting(name))
+      ['bar', 'baz'].map((name) => t.greeting(name), { ssr: name !== 'baz' }) // pre-fetching disabled for the `baz` query.
     ),
   };
 }) satisfies PageLoad
@@ -258,3 +262,10 @@ Then, in the component:
 
 * This wrapper only supports `tRPC v10` onward.
 * This project was made purely for fun and not linked to official `tRPC` or `tanstack-query` development in any way. If any official adapters of this sort were to be released, this project would most likely be discontinued.
+
+[npm-url]: https://npmjs.org/package/trpc-svelte-query-adapter
+[npm-image]: https://img.shields.io/npm/v/trpc-svelte-query-adapter.svg
+[license-url]: LICENSE
+[license-image]: http://img.shields.io/npm/l/trpc-svelte-query-adapter.svg
+[repo-url]: https://github.com/vishalbalaji/trpc-svelte-query-adapter
+[last-commit-image]: https://img.shields.io/github/last-commit/vishalbalaji/trpc-svelte-query-adapter

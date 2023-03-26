@@ -197,8 +197,21 @@ type CreateQueries<TClient, TError> = <TOpts extends CreateQueryOptionsForCreate
 	queriesCallback: (t: CreateQueriesRecord<OnlyQueries<TClient>, TError>) => readonly [...TOpts]
 ) => CreateQueriesResult<TOpts>
 
+// createServerQueries
+type CreateServerQueryOptionsForCreateQueries<TOutput, TError> =
+	CreateQueryOptionsForCreateQueries<TOutput, TError> & {
+		ssr?: boolean
+	}
+
+type CreateServerQueriesRecord<TClient, TError> = { [K in keyof TClient]:
+	TClient[K] extends HasQuery
+	? (input: Parameters<TClient[K]['query']>[0], opts?: CreateServerQueryOptionsForCreateQueries<Awaited<ReturnType<TClient[K]['query']>>, TError>)
+		=> CreateServerQueryOptionsForCreateQueries<Awaited<ReturnType<TClient[K]['query']>>, TError>
+	: CreateQueriesRecord<TClient[K], TError>
+}
+
 type CreateServerQueries<TClient, TError> = <TOpts extends CreateQueryOptionsForCreateQueries<any, any>[]>(
-	queriesCallback: (t: CreateQueriesRecord<OnlyQueries<TClient>, TError>) => readonly [...TOpts]
+	queriesCallback: (t: CreateServerQueriesRecord<OnlyQueries<TClient>, TError>) => readonly [...TOpts]
 ) => Promise<() => CreateQueriesResult<TOpts>>
 
 // Procedures
@@ -215,18 +228,29 @@ const ProcedureNames = {
 	serverQueries: 'createServerQueries',
 } as const;
 
+
+interface CreateServerQueryOptions<TOutput, TError>
+	extends CreateQueryOptions<TOutput, TError> {
+	ssr?: boolean
+}
+
 type CreateQueryProcedure<TInput, TOutput, TError> = {
 	[ProcedureNames.query]: (input: TInput, opts?: CreateQueryOptions<TOutput, TError>)
 		=> CreateQueryResult<TOutput, TError>,
-	[ProcedureNames.serverQuery]: (input: TInput, opts?: CreateQueryOptions<TOutput, TError>)
+	[ProcedureNames.serverQuery]: (input: TInput, opts?: CreateServerQueryOptions<TOutput, TError>)
 		=> Promise<() => CreateQueryResult<TOutput, TError>>,
 } & {}
+
+interface CreateServerInfiniteQueryOptions<TOutput, TError>
+	extends CreateInfiniteQueryOptions<TOutput, TError> {
+	ssr?: boolean
+}
 
 type CreateInfiniteQueryProcedure<TInput, TOutput, TError> = (TInput extends { cursor?: any }
 	? {
 		[ProcedureNames.infiniteQuery]: (input: Omit<TInput, 'cursor'>, opts?: CreateInfiniteQueryOptions<TOutput, TError>)
 			=> CreateInfiniteQueryResult<TOutput, TError>,
-		[ProcedureNames.serverInfiniteQuery]: (input: Omit<TInput, 'cursor'>, opts?: CreateInfiniteQueryOptions<TOutput, TError>)
+		[ProcedureNames.serverInfiniteQuery]: (input: Omit<TInput, 'cursor'>, opts?: CreateServerInfiniteQueryOptions<TOutput, TError>)
 			=> Promise<() => CreateInfiniteQueryResult<TOutput, TError>>,
 	}
 	: {}) & {}
@@ -238,7 +262,7 @@ type CreateMutationProcedure<TInput, TOutput, TError, TContext = unknown> = {
 		=> CreateMutationResult<TOutput, TError, TInput, TContext>
 } & {}
 
-type CreateTRPCSubscriptionOptions<TOutput, TError> = {
+type CreateSubscriptionOptions<TOutput, TError> = {
 	enabled?: boolean
 	onStarted?: () => void
 	onData: (data: TOutput) => void
@@ -251,7 +275,7 @@ type GetSubscriptionOutput<TOpts> = TOpts extends unknown & Partial<infer A>
 	: never
 
 type CreateSubscriptionProcedure<TInput, TOutput, TError> = {
-	[ProcedureNames.subscribe]: (input: TInput, opts?: CreateTRPCSubscriptionOptions<TOutput, TError>)
+	[ProcedureNames.subscribe]: (input: TInput, opts?: CreateSubscriptionOptions<TOutput, TError>)
 		=> void
 } & {}
 
@@ -281,112 +305,117 @@ function createQueriesProxy(client: any) {
 	});
 }
 
-const contextProcedures = {
-	[ContextProcedureNames.fetch]: ({ path, queryClient, target }) => {
-		return (input: any, opts?: any) => {
-			return queryClient.fetchQuery({
-				...opts,
-				queryKey: getArrayQueryKey(path, input, 'query'),
-				queryFn: () => target.query(input),
-			});
-		};
-	},
-	[ContextProcedureNames.prefetch]: ({ path, queryClient, target }) => {
-		return (input: any, opts?: any) => {
-			return queryClient.prefetchQuery({
-				...opts,
-				queryKey: getArrayQueryKey(path, input, 'query'),
-				queryFn: () => target.query(input),
-			});
-		};
-	},
-	[ContextProcedureNames.fetchInfinite]: ({ path, queryClient, target }) => {
-		return (input: any, opts?: any) => {
-			return queryClient.fetchInfiniteQuery({
-				...opts,
-				queryKey: getArrayQueryKey(path, input, 'infinite'),
-				queryFn: ({ pageParam }) => target.query({ ...input, cursor: pageParam }),
-			});
-		};
-	},
-	[ContextProcedureNames.prefetchInfinite]: ({ path, queryClient, target }) => {
-		return (input: any, opts?: any) => {
-			return queryClient.prefetchInfiniteQuery({
-				...opts,
-				queryKey: getArrayQueryKey(path, input, 'infinite'),
-				queryFn: ({ pageParam }) => target.query({ ...input, cursor: pageParam }),
-			});
-		};
-	},
-	[ContextProcedureNames.invalidate]: ({ path, queryClient }) => {
-		return (input?: any, filters?: any, options?: any) => {
-			return queryClient.invalidateQueries({
-				...filters,
-				queryKey: getArrayQueryKey(path, input, 'any'),
-			}, options);
-		};
-	},
-	[ContextProcedureNames.refetch]: ({ path, queryClient }) => {
-		return (input?: any, filters?: any, options?: any) => {
-			return queryClient.refetchQueries({
-				...filters,
-				queryKey: getArrayQueryKey(path, input, 'any'),
-			}, options);
-		};
-	},
-	[ContextProcedureNames.cancel]: ({ path, queryClient }) => {
-		return (input?: any, filters?: any, options?: any) => {
-			return queryClient.cancelQueries(
-				getArrayQueryKey(path, input, 'any'),
-				filters,
-				options
-			);
-		};
-	},
-	[ContextProcedureNames.reset]: ({ queryClient, path }) => {
-		return (input?: any, filters?: any, options?: any) => {
-			return queryClient.resetQueries(
-				getArrayQueryKey(path, input, 'any'),
-				filters,
-				options
-			);
-		};
-	},
-	[ContextProcedureNames.setData]: ({ queryClient, path }) => {
-		return (input: any, updater: any, options?: any) => {
-			return queryClient.setQueryData(
-				getArrayQueryKey(path, input, 'query'),
-				updater,
-				options
-			);
-		};
-	},
-	[ContextProcedureNames.setInfiniteData]: ({ queryClient, path }) => {
-		return (input: any, updater: any, options?: any) => {
-			return queryClient.setQueryData(
-				getArrayQueryKey(path, input, 'infinite'),
-				updater,
-				options
-			);
-		};
-	},
-	[ContextProcedureNames.getData]: ({ queryClient, path }) => {
-		return (input?: any, filters?: any) => {
-			return queryClient.getQueryData(
-				getArrayQueryKey(path, input, 'query'),
-				filters
-			);
-		};
-	},
-	[ContextProcedureNames.getInfiniteData]: ({ queryClient, path }) => {
-		return (input?: any, filters?: any) => {
-			return queryClient.getQueryData(
-				getArrayQueryKey(path, input, 'infinite'),
-				filters
-			);
-		};
-	},
-};
+const contextProcedures: Record<PropertyKey,
+	(opts: {
+		path: string[],
+		queryClient: QueryClient,
+		target: any
+	}) => any> = {
+		[ContextProcedureNames.fetch]: ({ path, queryClient, target }) => {
+			return (input: any, opts?: any) => {
+				return queryClient.fetchQuery({
+					...opts,
+					queryKey: getArrayQueryKey(path, input, 'query'),
+					queryFn: () => target.query(input),
+				});
+			};
+		},
+		[ContextProcedureNames.prefetch]: ({ path, queryClient, target }) => {
+			return (input: any, opts?: any) => {
+				return queryClient.prefetchQuery({
+					...opts,
+					queryKey: getArrayQueryKey(path, input, 'query'),
+					queryFn: () => target.query(input),
+				});
+			};
+		},
+		[ContextProcedureNames.fetchInfinite]: ({ path, queryClient, target }) => {
+			return (input: any, opts?: any) => {
+				return queryClient.fetchInfiniteQuery({
+					...opts,
+					queryKey: getArrayQueryKey(path, input, 'infinite'),
+					queryFn: ({ pageParam }) => target.query({ ...input, cursor: pageParam }),
+				});
+			};
+		},
+		[ContextProcedureNames.prefetchInfinite]: ({ path, queryClient, target }) => {
+			return (input: any, opts?: any) => {
+				return queryClient.prefetchInfiniteQuery({
+					...opts,
+					queryKey: getArrayQueryKey(path, input, 'infinite'),
+					queryFn: ({ pageParam }) => target.query({ ...input, cursor: pageParam }),
+				});
+			};
+		},
+		[ContextProcedureNames.invalidate]: ({ path, queryClient }) => {
+			return (input?: any, filters?: any, options?: any) => {
+				return queryClient.invalidateQueries({
+					...filters,
+					queryKey: getArrayQueryKey(path, input, 'any'),
+				}, options);
+			};
+		},
+		[ContextProcedureNames.refetch]: ({ path, queryClient }) => {
+			return (input?: any, filters?: any, options?: any) => {
+				return queryClient.refetchQueries({
+					...filters,
+					queryKey: getArrayQueryKey(path, input, 'any'),
+				}, options);
+			};
+		},
+		[ContextProcedureNames.cancel]: ({ path, queryClient }) => {
+			return (input?: any, filters?: any, options?: any) => {
+				return queryClient.cancelQueries(
+					getArrayQueryKey(path, input, 'any'),
+					filters,
+					options
+				);
+			};
+		},
+		[ContextProcedureNames.reset]: ({ queryClient, path }) => {
+			return (input?: any, filters?: any, options?: any) => {
+				return queryClient.resetQueries(
+					getArrayQueryKey(path, input, 'any'),
+					filters,
+					options
+				);
+			};
+		},
+		[ContextProcedureNames.setData]: ({ queryClient, path }) => {
+			return (input: any, updater: any, options?: any) => {
+				return queryClient.setQueryData(
+					getArrayQueryKey(path, input, 'query'),
+					updater,
+					options
+				);
+			};
+		},
+		[ContextProcedureNames.setInfiniteData]: ({ queryClient, path }) => {
+			return (input: any, updater: any, options?: any) => {
+				return queryClient.setQueryData(
+					getArrayQueryKey(path, input, 'infinite'),
+					updater,
+					options
+				);
+			};
+		},
+		[ContextProcedureNames.getData]: ({ queryClient, path }) => {
+			return (input?: any, filters?: any) => {
+				return queryClient.getQueryData(
+					getArrayQueryKey(path, input, 'query'),
+					filters
+				);
+			};
+		},
+		[ContextProcedureNames.getInfiniteData]: ({ queryClient, path }) => {
+			return (input?: any, filters?: any) => {
+				return queryClient.getQueryData(
+					getArrayQueryKey(path, input, 'infinite'),
+					filters
+				);
+			};
+		},
+	};
 
 function createContextProxy(client: any, queryClient: QueryClient) {
 	return new DeepProxy({}, {
@@ -403,117 +432,153 @@ function createContextProxy(client: any, queryClient: QueryClient) {
 	});
 }
 
-const procedures = {
-	[ProcedureNames.queryKey]: ({ path }) => {
-		return (input: any, opts?: any) => getArrayQueryKey(path, input, opts);
-	},
-	[ProcedureNames.query]: ({ path, target }) => {
-		const targetFn = target.query;
+const procedures: Record<PropertyKey,
+	(opts: {
+		path: string[],
+		target: any,
+		queryClient: QueryClient,
+		queriesProxy: () => any,
+		contextProxy: () => any
+	}) => any>
+	= {
+		[ProcedureNames.queryKey]: ({ path }) => {
+			return (input: any, opts?: any) => getArrayQueryKey(path, input, opts);
+		},
+		[ProcedureNames.query]: ({ path, target }) => {
+			const targetFn = target.query;
 
-		return (input: any, opts?: any) => {
-			return createQuery({
-				...opts,
-				queryKey: getArrayQueryKey(path, input, 'query'),
-				queryFn: () => targetFn(input),
-			});
-		};
-	},
-	[ProcedureNames.serverQuery]: ({ path, target }) => {
-		const targetFn = target.query;
+			return (input: any, opts?: any) => {
+				return createQuery({
+					...opts,
+					queryKey: getArrayQueryKey(path, input, 'query'),
+					queryFn: () => targetFn(input),
+				});
+			};
+		},
+		[ProcedureNames.serverQuery]: ({ path, target, queryClient }) => {
+			const targetFn = target.query;
 
-		return async (input: any, opts?: any) => {
-			const initialData = await targetFn(input);
-			return () => createQuery({
-				...opts,
-				refetchOnMount: false,
-				queryKey: getArrayQueryKey(path, input, 'query'),
-				queryFn: () => targetFn(input),
-				initialData,
-			});
-		};
-	},
-	[ProcedureNames.infiniteQuery]: ({ path, target }) => {
-		return (input: any, opts?: any) => {
-			return createInfiniteQuery({
-				...opts,
-				queryKey: getArrayQueryKey(path, input, 'infinite'),
-				queryFn: ({ pageParam }) => target.query({ ...input, cursor: pageParam }),
-			});
-		};
-	},
-	[ProcedureNames.serverInfiniteQuery]: ({ path, target }) => {
-		const targetFn = target.query;
+			return async (input: any, opts?: any) => {
+				const query = {
+					queryKey: getArrayQueryKey(path, input, 'query'),
+					queryFn: () => targetFn(input),
+				};
 
-		return async (input: any, opts?: any) => {
-			const initialData = await targetFn(input);
-			return () => createInfiniteQuery({
-				...opts,
-				refetchOnMount: false,
-				queryKey: getArrayQueryKey(path, input, 'infinite'),
-				queryFn: ({ pageParam }) => target.query({ ...input, cursor: pageParam }),
-				initialData,
-			});
-		};
-	},
-	[ProcedureNames.mutate]: ({ path, target }) => {
-		return (opts?: any) => {
-			return createMutation({
-				...opts,
-				mutationKey: path,
-				mutationFn: (data) => target.mutate(data),
-			});
-		};
-	},
-	[ProcedureNames.subscribe]: ({ target }) => {
-		return (input: any, opts?: any) => {
-			const enabled = opts?.enabled ?? true;
-			if (!enabled) return;
+				const cache = queryClient.getQueryCache().find(query.queryKey);
+				if (opts?.ssr !== false && !cache) {
+					await queryClient.prefetchQuery(query);
+				}
 
-			let isStopped = false;
-			const subscription = target.subscribe(input, {
-				onStarted: () => {
-					if (!isStopped) opts.onStarted?.();
-				},
-				onData: (data: any) => {
-					if (!isStopped) opts.onData?.(data);
-				},
-				onError: (err: any) => {
-					if (!isStopped) opts.onError?.(err);
-				},
-			});
+				return () => createQuery({
+					...opts,
+					...query,
+					...(!cache ?
+						{ refetchOnMount: opts?.refetchOnMount ?? false } : {}
+					),
+				});
+			};
+		},
+		[ProcedureNames.infiniteQuery]: ({ path, target }) => {
+			return (input: any, opts?: any) => {
+				return createInfiniteQuery({
+					...opts,
+					queryKey: getArrayQueryKey(path, input, 'infinite'),
+					queryFn: ({ pageParam }) => target.query({ ...input, cursor: pageParam }),
+				});
+			};
+		},
+		[ProcedureNames.serverInfiniteQuery]: ({ path, target, queryClient }) => {
+			const targetFn = target.query;
 
-			return onDestroy(() => {
-				isStopped = true;
-				subscription.unsubscribe();
-			});
-		};
-	},
-	[ProcedureNames.queries]: ({ path, queriesProxy }) => {
-		if (path.length !== 0) return;
-		return (input: (...args: any[]) => any) => {
-			return createQueries(input(queriesProxy));
-		};
-	},
-	[ProcedureNames.serverQueries]: ({ path, queriesProxy }) => {
-		if (path.length !== 0) return;
-		return async (input: (...args: any[]) => any) => {
-			const queryKeys = await Promise.all(
-				input(queriesProxy).map(async (query: any) => {
-					return {
-						...query,
-						refetchOnMount: false,
-						initialData: await query.queryFn(),
-					};
-				})
-			);
-			return () => createQueries(queryKeys);
-		};
-	},
-	[ProcedureNames.context]: ({ path, contextProxy }) => {
-		if (path.length !== 0) return;
-		return () => contextProxy;
-	},
-};
+			return async (input: any, opts?: any) => {
+				const query = {
+					queryKey: getArrayQueryKey(path, input, 'infinite'),
+					queryFn: ({ pageParam }) => targetFn({ ...input, cursor: pageParam }),
+				};
+
+				const cache = queryClient.getQueryCache().find(query.queryKey);
+				if (opts?.ssr !== false && !cache) {
+					await queryClient.prefetchInfiniteQuery(query as any);
+				}
+
+				return () => createInfiniteQuery({
+					...opts,
+					...query,
+					...(!cache ?
+						{ refetchOnMount: opts?.refetchOnMount ?? false } : {}
+					),
+				});
+			};
+		},
+		[ProcedureNames.mutate]: ({ path, target }) => {
+			return (opts?: any) => {
+				return createMutation({
+					...opts,
+					mutationKey: path,
+					mutationFn: (data) => target.mutate(data),
+				});
+			};
+		},
+		[ProcedureNames.subscribe]: ({ target }) => {
+			return (input: any, opts?: any) => {
+				const enabled = opts?.enabled ?? true;
+				if (!enabled) return;
+
+				let isStopped = false;
+				const subscription = target.subscribe(input, {
+					onStarted: () => {
+						if (!isStopped) opts?.onStarted?.();
+					},
+					onData: (data: any) => {
+						if (!isStopped) opts?.onData?.(data);
+					},
+					onError: (err: any) => {
+						if (!isStopped) opts?.onError?.(err);
+					},
+				});
+
+				return onDestroy(() => {
+					isStopped = true;
+					subscription.unsubscribe();
+				});
+			};
+		},
+		[ProcedureNames.queries]: ({ path, queriesProxy }) => {
+			if (path.length !== 0) return;
+			return (input: (...args: any[]) => any) => {
+				const proxy = queriesProxy();
+				return createQueries(input(proxy));
+			};
+		},
+		[ProcedureNames.serverQueries]: ({ path, queriesProxy, queryClient }) => {
+			if (path.length !== 0) return;
+			const proxy = queriesProxy();
+
+			return async (input: (...args: any[]) => any) => {
+				const queryKeys = await Promise.all(
+					input(proxy).map(async (query: any) => {
+						const cache = queryClient.getQueryCache().find(query.queryKey);
+
+						if (query.ssr !== false && !cache) {
+							await queryClient.prefetchQuery(query);
+						}
+
+						return {
+							...query,
+							...(!cache ?
+								{ refetchOnMount: query.refetchOnMount ?? false } : {}
+							),
+						};
+					})
+				);
+				return () => createQueries(queryKeys);
+			};
+		},
+		[ProcedureNames.context]: ({ path, contextProxy }) => {
+			if (path.length !== 0) return;
+			return contextProxy;
+		},
+	};
 
 export function svelteQueryWrapper<TRouter extends AnyRouter>({
 	client,
@@ -524,8 +589,7 @@ export function svelteQueryWrapper<TRouter extends AnyRouter>({
 	type RouterError = TRPCClientErrorLike<TRouter>;
 	type ClientWithQuery = AddQueryPropTypes<Client, RouterError>;
 
-	const queriesProxy = createQueriesProxy(client);
-	const contextProxy = createContextProxy(client, queryClient ?? useQueryClient());
+	const qc = queryClient ?? useQueryClient();
 
 	return new DeepProxy({} as ClientWithQuery & (
 		ClientWithQuery extends Record<any, any> ?
@@ -538,7 +602,13 @@ export function svelteQueryWrapper<TRouter extends AnyRouter>({
 		get(_, key) {
 			if (Object.hasOwn(procedures, key)) {
 				const target = [...this.path].reduce((client, value) => client[value], client as Record<PropertyKey, any>);
-				return procedures[key]({ path: this.path, target, queriesProxy, contextProxy });
+				return procedures[key]({
+					path: this.path,
+					target,
+					queryClient: qc,
+					queriesProxy: () => createQueriesProxy(client),
+					contextProxy: () => createContextProxy(client, qc),
+				});
 			}
 			return this.nest(() => { });
 		},
