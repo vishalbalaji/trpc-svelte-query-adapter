@@ -1,7 +1,7 @@
 {
 	"name": "trpc-svelte-query-adapter",
 	"version": "2.0.4",
-	"description": "An adapter to use `@tanstack/svelte-query` with trpc, similar to `@trpc/react-query`.",
+	"description": "A simple adapter to use `@tanstack/svelte-query` with trpc, similar to `@trpc/react-query`.",
 	"keywords": [
 		"trpc",
 		"svelte",
