@@ -198,7 +198,7 @@ Which can then be initialized and used in the way that it is described [in its d
 
 This adapter provides 3 additional procedures: `createServerQuery`, `createServerInfiniteQuery` and `createServerQueries`, which can be used to call their counterpart procedures in the `load` function in either a `+page.ts` or `+layout.ts`. These procedures return a `promise` and therefore can only really be called on the server.
 
-By default, these 3 procedures will pre-fetch the data required to pre-render the page on the server. However, if you wish to disable this option on certain queries, you can do so by setting the `ssr` option to `false`.
+By default, these 3 procedures will pre-fetch the data required to pre-render the page on the server. However, if you wish to disable this behaviour on certain queries, you can do so by setting the `ssr` option to `false`.
 
 These procedures can be used as such:
 
