@@ -197,8 +197,21 @@ type CreateQueries<TClient, TError> = <TOpts extends CreateQueryOptionsForCreate
 	queriesCallback: (t: CreateQueriesRecord<OnlyQueries<TClient>, TError>) => readonly [...TOpts]
 ) => CreateQueriesResult<TOpts>
 
+// createServerQueries
+type CreateServerQueryOptionsForCreateQueries<TOutput, TError> =
+	CreateQueryOptionsForCreateQueries<TOutput, TError> & {
+		ssr?: boolean
+	}
+
+type CreateServerQueriesRecord<TClient, TError> = { [K in keyof TClient]:
+	TClient[K] extends HasQuery
+	? (input: Parameters<TClient[K]['query']>[0], opts?: CreateServerQueryOptionsForCreateQueries<Awaited<ReturnType<TClient[K]['query']>>, TError>)
+		=> CreateServerQueryOptionsForCreateQueries<Awaited<ReturnType<TClient[K]['query']>>, TError>
+	: CreateQueriesRecord<TClient[K], TError>
+}
+
 type CreateServerQueries<TClient, TError> = <TOpts extends CreateQueryOptionsForCreateQueries<any, any>[]>(
-	queriesCallback: (t: CreateQueriesRecord<OnlyQueries<TClient>, TError>) => readonly [...TOpts]
+	queriesCallback: (t: CreateServerQueriesRecord<OnlyQueries<TClient>, TError>) => readonly [...TOpts]
 ) => Promise<() => CreateQueriesResult<TOpts>>
 
 // Procedures
@@ -215,18 +228,29 @@ const ProcedureNames = {
 	serverQueries: 'createServerQueries',
 } as const;
 
+
+interface CreateServerQueryOptions<TOutput, TError>
+	extends CreateQueryOptions<TOutput, TError> {
+	ssr?: boolean
+}
+
 type CreateQueryProcedure<TInput, TOutput, TError> = {
 	[ProcedureNames.query]: (input: TInput, opts?: CreateQueryOptions<TOutput, TError>)
 		=> CreateQueryResult<TOutput, TError>,
-	[ProcedureNames.serverQuery]: (input: TInput, opts?: CreateQueryOptions<TOutput, TError>)
+	[ProcedureNames.serverQuery]: (input: TInput, opts?: CreateServerQueryOptions<TOutput, TError>)
 		=> Promise<() => CreateQueryResult<TOutput, TError>>,
 } & {}
+
+interface CreateServerInfiniteQueryOptions<TOutput, TError>
+	extends CreateInfiniteQueryOptions<TOutput, TError> {
+	ssr?: boolean
+}
 
 type CreateInfiniteQueryProcedure<TInput, TOutput, TError> = (TInput extends { cursor?: any }
 	? {
 		[ProcedureNames.infiniteQuery]: (input: Omit<TInput, 'cursor'>, opts?: CreateInfiniteQueryOptions<TOutput, TError>)
 			=> CreateInfiniteQueryResult<TOutput, TError>,
-		[ProcedureNames.serverInfiniteQuery]: (input: Omit<TInput, 'cursor'>, opts?: CreateInfiniteQueryOptions<TOutput, TError>)
+		[ProcedureNames.serverInfiniteQuery]: (input: Omit<TInput, 'cursor'>, opts?: CreateServerInfiniteQueryOptions<TOutput, TError>)
 			=> Promise<() => CreateInfiniteQueryResult<TOutput, TError>>,
 	}
 	: {}) & {}
@@ -238,7 +262,7 @@ type CreateMutationProcedure<TInput, TOutput, TError, TContext = unknown> = {
 		=> CreateMutationResult<TOutput, TError, TInput, TContext>
 } & {}
 
-type CreateTRPCSubscriptionOptions<TOutput, TError> = {
+type CreateSubscriptionOptions<TOutput, TError> = {
 	enabled?: boolean
 	onStarted?: () => void
 	onData: (data: TOutput) => void
@@ -251,7 +275,7 @@ type GetSubscriptionOutput<TOpts> = TOpts extends unknown & Partial<infer A>
 	: never
 
 type CreateSubscriptionProcedure<TInput, TOutput, TError> = {
-	[ProcedureNames.subscribe]: (input: TInput, opts?: CreateTRPCSubscriptionOptions<TOutput, TError>)
+	[ProcedureNames.subscribe]: (input: TInput, opts?: CreateSubscriptionOptions<TOutput, TError>)
 		=> void
 } & {}
 
@@ -441,7 +465,7 @@ const procedures: Record<PropertyKey,
 				};
 
 				const cache = queryClient.getQueryCache().find(query.queryKey);
-				if (!cache) {
+				if (opts?.ssr !== false && !cache) {
 					await queryClient.prefetchQuery(query);
 				}
 
@@ -449,7 +473,7 @@ const procedures: Record<PropertyKey,
 					...opts,
 					...query,
 					...(!cache ?
-						{ refetchOnMount: opts.refetchOnMount ?? false } : {}
+						{ refetchOnMount: opts?.refetchOnMount ?? false } : {}
 					),
 				});
 			};
@@ -473,7 +497,7 @@ const procedures: Record<PropertyKey,
 				};
 
 				const cache = queryClient.getQueryCache().find(query.queryKey);
-				if (!cache) {
+				if (opts?.ssr !== false && !cache) {
 					await queryClient.prefetchInfiniteQuery(query as any);
 				}
 
@@ -481,7 +505,7 @@ const procedures: Record<PropertyKey,
 					...opts,
 					...query,
 					...(!cache ?
-						{ refetchOnMount: opts.refetchOnMount ?? false } : {}
+						{ refetchOnMount: opts?.refetchOnMount ?? false } : {}
 					),
 				});
 			};
@@ -503,13 +527,13 @@ const procedures: Record<PropertyKey,
 				let isStopped = false;
 				const subscription = target.subscribe(input, {
 					onStarted: () => {
-						if (!isStopped) opts.onStarted?.();
+						if (!isStopped) opts?.onStarted?.();
 					},
 					onData: (data: any) => {
-						if (!isStopped) opts.onData?.(data);
+						if (!isStopped) opts?.onData?.(data);
 					},
 					onError: (err: any) => {
-						if (!isStopped) opts.onError?.(err);
+						if (!isStopped) opts?.onError?.(err);
 					},
 				});
 
@@ -535,9 +559,10 @@ const procedures: Record<PropertyKey,
 					input(proxy).map(async (query: any) => {
 						const cache = queryClient.getQueryCache().find(query.queryKey);
 
-						if (!cache) {
+						if (query.ssr !== false && !cache) {
 							await queryClient.prefetchQuery(query);
 						}
+
 						return {
 							...query,
 							...(!cache ?
