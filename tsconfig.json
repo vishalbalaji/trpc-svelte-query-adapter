@@ -1,13 +1,28 @@
 {
   "compilerOptions": {
-    "allowJs": true,
-    "lib": ["esnext", "DOM", "DOM.Iterable"],
-    "moduleResolution": "Node",
+    "module": "esnext",
+    "target": "esnext",
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "preserveConstEnums": true,
+    "outDir": "./dist",
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitReturns": true,
+    "strict": true,
     "declaration": true,
-    "skipLibCheck": true,
-    "module": "ESNext",
-    "target": "ESNext",
-    "outDir": "dist",
-    "rootDir": "src"
-  }
+    "noEmitOnError": true,
+    "noErrorTruncation": true,
+    "resolveJsonModule": true,
+    "rootDirs": [
+      "./src"
+    ],
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "lib": [
+			"es2022",
+			"DOM"
+    ]
+  },
+  "include": [ "src/**/*" ],
+  "exclude": [ "node_modules" ]
 }

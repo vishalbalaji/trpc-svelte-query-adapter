@@ -47,51 +47,6 @@ type HasMutate = { mutate: (...args: any[]) => any }
 type HasSubscribe = { subscribe: (...args: any[]) => any }
 type OnlyQueries<TClient> = Without<TClient, HasMutate | HasSubscribe>
 
-
-// getQueryKey
-type QueryType = 'query' | 'infinite' | 'any';
-
-type QueryKey = [
-	string[],
-	{ input?: unknown; type?: Exclude<QueryType, 'any'> }?,
-];
-
-function getArrayQueryKey(
-	queryKey: string | [string] | [string, ...unknown[]] | unknown[],
-	input: unknown,
-	type: QueryType
-): QueryKey {
-	const arrayPath = (typeof queryKey === 'string' ?
-		queryKey === '' ? [] : queryKey.split('.')
-		: queryKey) as [string];
-
-	if (!input && (!type || type === 'any'))
-		// for `utils.invalidate()` to match all queries (including vanilla react-query)
-		// we don't want nested array if path is empty, i.e. `[]` instead of `[[]]`
-		return arrayPath.length ? [arrayPath] : ([] as unknown as QueryKey);
-
-	return [
-		arrayPath,
-		{
-			...(typeof input !== 'undefined' && { input: input }),
-			...(type && type !== 'any' && { type: type }),
-		},
-	];
-}
-
-type GetQueryKey<TInput = undefined> = TInput extends undefined
-	? {
-		[ProcedureNames.queryKey]: () => QueryKey
-	}
-	: {
-		/**
-		 * Method to extract the query key for a procedure
-		 * @param type - defaults to `any`
-		 */
-		[ProcedureNames.queryKey]: (input: TInput, type?: QueryType) => QueryKey
-	} & {}
-
-
 // createContext
 const ContextProcedureNames = {
 	client: 'client',
@@ -334,7 +289,7 @@ const contextProcedures: Record<PropertyKey,
 				return queryClient.fetchInfiniteQuery({
 					...opts,
 					queryKey: getArrayQueryKey(path, input, 'infinite'),
-					queryFn: ({ pageParam }) => target.query({ ...input, cursor: pageParam }),
+					queryFn: ({ pageParam }: { pageParam: number }) => target.query({ ...input, cursor: pageParam }),
 				});
 			};
 		},
@@ -343,7 +298,7 @@ const contextProcedures: Record<PropertyKey,
 				return queryClient.prefetchInfiniteQuery({
 					...opts,
 					queryKey: getArrayQueryKey(path, input, 'infinite'),
-					queryFn: ({ pageParam }) => target.query({ ...input, cursor: pageParam }),
+					queryFn: ({ pageParam }:{ pageParam: number }) => target.query({ ...input, cursor: pageParam }),
 				});
 			};
 		},
@@ -483,7 +438,7 @@ const procedures: Record<PropertyKey,
 				return createInfiniteQuery({
 					...opts,
 					queryKey: getArrayQueryKey(path, input, 'infinite'),
-					queryFn: ({ pageParam }) => target.query({ ...input, cursor: pageParam }),
+					queryFn: ({ pageParam }: { pageParam: number }) => target.query({ ...input, cursor: pageParam }),
 				});
 			};
 		},
@@ -491,12 +446,13 @@ const procedures: Record<PropertyKey,
 			const targetFn = target.query;
 
 			return async (input: any, opts?: any) => {
-				const query = {
-					queryKey: getArrayQueryKey(path, input, 'infinite'),
+				const queryKey = getArrayQueryKey(path, input, 'infinite');
+				const query: CreateInfiniteQueryOptions = {
+					queryKey,
 					queryFn: ({ pageParam }) => targetFn({ ...input, cursor: pageParam }),
 				};
 
-				const cache = queryClient.getQueryCache().find(query.queryKey);
+				const cache = queryClient.getQueryCache().find(queryKey);
 				if (opts?.ssr !== false && !cache) {
 					await queryClient.prefetchInfiniteQuery(query as any);
 				}
@@ -579,6 +535,51 @@ const procedures: Record<PropertyKey,
 			return contextProxy;
 		},
 	};
+
+// getQueryKey
+type QueryType = 'query' | 'infinite' | 'any';
+
+type QueryKey = [
+	string[],
+	{ input?: unknown; type?: Exclude<QueryType, 'any'> }?,
+];
+
+function getArrayQueryKey(
+	queryKey: string | [string] | [string, ...unknown[]] | unknown[],
+	input: unknown,
+	type: QueryType
+): QueryKey {
+	const arrayPath = (typeof queryKey === 'string' ?
+		queryKey === '' ? [] : queryKey.split('.')
+		: queryKey) as [string];
+
+	if (!input && (!type || type === 'any'))
+		// for `utils.invalidate()` to match all queries (including vanilla react-query)
+		// we don't want nested array if path is empty, i.e. `[]` instead of `[[]]`
+		return arrayPath.length ? [arrayPath] : ([] as unknown as QueryKey);
+
+	return [
+		arrayPath,
+		{
+			...(typeof input !== 'undefined' && { input: input }),
+			...(type && type !== 'any' && { type: type }),
+		},
+	];
+}
+
+type GetQueryKey<TInput = undefined> = TInput extends undefined
+	? {
+		[ProcedureNames.queryKey]: () => QueryKey
+	}
+	: {
+		/**
+		 * Method to extract the query key for a procedure
+		 * @param type - defaults to `any`
+		 */
+		[ProcedureNames.queryKey]: (input: TInput, type?: QueryType) => QueryKey
+	} & {}
+
+
 
 export function svelteQueryWrapper<TRouter extends AnyRouter>({
 	client,
