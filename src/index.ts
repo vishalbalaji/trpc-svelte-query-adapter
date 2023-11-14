@@ -143,34 +143,36 @@ type CreateUtils<TClient, TError> = AddUtilsPropTypes<OnlyQueries<TClient>, TErr
 
 // createQueries
 type CreateQueriesResult<TOpts extends any[]> = ReturnType<typeof createQueries<TOpts>>;
-type CreateQueryOptionsForCreateQueries<TInput, TError> =
-	Omit<CreateQueryOptions<TInput, TError>, 'context'>
+type CreateQueryOptionsForCreateQueries<TOutput, TError, TData> =
+	Omit<CreateQueryOptions<TOutput, TError, TData>, 'context'>
 
 type CreateQueriesRecord<TClient, TError> = { [K in keyof TClient]:
 	TClient[K] extends HasQuery
-	? (input: Parameters<TClient[K]['query']>[0], opts?: CreateQueryOptionsForCreateQueries<Awaited<ReturnType<TClient[K]['query']>>, TError>)
-		=> CreateQueryOptionsForCreateQueries<Awaited<ReturnType<TClient[K]['query']>>, TError>
+	? <TOutput = Awaited<ReturnType<TClient[K]['query']>>,TData = TOutput>
+	(input: Parameters<TClient[K]['query']>[0], opts?: CreateQueryOptionsForCreateQueries<TOutput, TError,  TData>)
+		=> CreateQueryOptionsForCreateQueries<TOutput, TError, TData>
 	: CreateQueriesRecord<TClient[K], TError>
 }
 
-type CreateQueries<TClient, TError> = <TOpts extends CreateQueryOptionsForCreateQueries<any, any>[]>(
+type CreateQueries<TClient, TError> = <TOpts extends CreateQueryOptionsForCreateQueries<any, any, any>[]>(
 	queriesCallback: (t: CreateQueriesRecord<OnlyQueries<TClient>, TError>) => readonly [...TOpts]
 ) => CreateQueriesResult<TOpts>
 
 // createServerQueries
-type CreateServerQueryOptionsForCreateQueries<TOutput, TError> =
-	CreateQueryOptionsForCreateQueries<TOutput, TError> & {
+type CreateServerQueryOptionsForCreateQueries<TOutput, TError, TData> =
+	CreateQueryOptionsForCreateQueries<TOutput, TError, TData> & {
 		ssr?: boolean
 	}
 
 type CreateServerQueriesRecord<TClient, TError> = { [K in keyof TClient]:
 	TClient[K] extends HasQuery
-	? (input: Parameters<TClient[K]['query']>[0], opts?: CreateServerQueryOptionsForCreateQueries<Awaited<ReturnType<TClient[K]['query']>>, TError>)
-		=> CreateServerQueryOptionsForCreateQueries<Awaited<ReturnType<TClient[K]['query']>>, TError>
+	? <TOutput = Awaited<ReturnType<TClient[K]['query']>>, TData = TOutput>
+	(input: Parameters<TClient[K]['query']>[0], opts?: CreateServerQueryOptionsForCreateQueries<TOutput, TError, TData>)
+		=> CreateServerQueryOptionsForCreateQueries<TOutput, TError, TData>
 	: CreateQueriesRecord<TClient[K], TError>
 }
 
-type CreateServerQueries<TClient, TError> = <TOpts extends CreateQueryOptionsForCreateQueries<any, any>[]>(
+type CreateServerQueries<TClient, TError> = <TOpts extends CreateQueryOptionsForCreateQueries<any, any, any>[]>(
 	queriesCallback: (t: CreateServerQueriesRecord<OnlyQueries<TClient>, TError>) => readonly [...TOpts]
 ) => Promise<() => CreateQueriesResult<TOpts>>
 
@@ -190,29 +192,29 @@ const ProcedureNames = {
 } as const;
 
 
-interface CreateServerQueryOptions<TOutput, TError>
-	extends CreateQueryOptions<TOutput, TError> {
+interface CreateServerQueryOptions<TOutput, TError, TData>
+	extends CreateQueryOptions<TOutput, TError, TData> {
 	ssr?: boolean
 }
 
 type CreateQueryProcedure<TInput, TOutput, TError> = {
-	[ProcedureNames.query]: (input: TInput, opts?: CreateQueryOptions<TOutput, TError>)
-		=> CreateQueryResult<TOutput, TError>,
-	[ProcedureNames.serverQuery]: (input: TInput, opts?: CreateServerQueryOptions<TOutput, TError>)
-		=> Promise<() => CreateQueryResult<TOutput, TError>>,
+	[ProcedureNames.query]: <TData = TOutput>(input: TInput, opts?: CreateQueryOptions<TOutput, TError, TData>)
+		=> CreateQueryResult<TData, TError>,
+	[ProcedureNames.serverQuery]: <TData = TOutput>(input: TInput, opts?: CreateServerQueryOptions<TOutput, TError, TData>)
+		=> Promise<() => CreateQueryResult<TData, TError>>,
 } & {}
 
-interface CreateServerInfiniteQueryOptions<TOutput, TError>
-	extends CreateInfiniteQueryOptions<TOutput, TError> {
+interface CreateServerInfiniteQueryOptions<TOutput, TError, TData>
+	extends CreateInfiniteQueryOptions<TOutput, TError, TData> {
 	ssr?: boolean
 }
 
 type CreateInfiniteQueryProcedure<TInput, TOutput, TError> = (TInput extends { cursor?: any }
 	? {
-		[ProcedureNames.infiniteQuery]: (input: Omit<TInput, 'cursor'>, opts?: CreateInfiniteQueryOptions<TOutput, TError>)
-			=> CreateInfiniteQueryResult<TOutput, TError>,
-		[ProcedureNames.serverInfiniteQuery]: (input: Omit<TInput, 'cursor'>, opts?: CreateServerInfiniteQueryOptions<TOutput, TError>)
-			=> Promise<() => CreateInfiniteQueryResult<TOutput, TError>>,
+		[ProcedureNames.infiniteQuery]: <TData = TOutput>(input: Omit<TInput, 'cursor'>, opts?: CreateInfiniteQueryOptions<TOutput, TError, TData>)
+			=> CreateInfiniteQueryResult<TData, TError>,
+		[ProcedureNames.serverInfiniteQuery]: <TData = TOutput>(input: Omit<TInput, 'cursor'>, opts?: CreateServerInfiniteQueryOptions<TOutput, TError, TData>)
+			=> Promise<() => CreateInfiniteQueryResult<TData, TError>>,
 	}
 	: {}) & {}
 
