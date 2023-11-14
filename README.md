@@ -10,7 +10,7 @@ This package provides an adapter to call `tRPC` procedures wrapped with <code>[@
 
 ## Installation
 
-```bash
+```console
 # npm
 npm install trpc-svelte-query-adapter @trpc/client @trpc/server @tanstack/svelte-query
 
@@ -31,8 +31,8 @@ The following functions from `@trpc/react-query` are ported over:
 - `useInfiniteQuery` -> `createInfiniteQuery`
 - `useMutation` -> `createMutation`
 - `useSubscription` -> `createSubscription`
-- `useContext` -> `createContext`
-- `useContext` -> `createQueries`
+- `useQueries` -> `createQueries`
+- `useUtils` -> `createUtils`
 - `getQueryKey`
 
 You can refer to <code>[tanstack-query docs](https://tanstack.com/query/latest/docs/react/overview)</code> and <code>[@trpc/react-query docs](https://trpc.io/docs/react-query)</code> for documentation on how to use them.
@@ -217,7 +217,7 @@ export const load = (async (event) => {
   return {
     foo: client.greeting.createServerQuery('foo'),
     queries: client.createServerQueries((t) =>
-      ['bar', 'baz'].map((name) => t.greeting(name), { ssr: name !== 'baz' }) // pre-fetching disabled for the `baz` query.
+      ['bar', 'baz'].map((name) => t.greeting(name, { ssr: name !== 'baz' })), // pre-fetching disabled for the `baz` query.
     ),
   };
 }) satisfies PageLoad

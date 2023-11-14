@@ -1,6 +1,6 @@
 {
 	"name": "trpc-svelte-query-adapter",
-	"version": "2.1.0",
+	"version": "2.2.0",
 	"description": "A simple adapter to use `@tanstack/svelte-query` with trpc, similar to `@trpc/react-query`.",
 	"keywords": [
 		"trpc",
@@ -33,16 +33,17 @@
 		"build": "tsc"
 	},
 	"dependencies": {
-		"@tanstack/svelte-query": "^4.27.0",
-		"@trpc/client": "^10.18.0",
-		"@trpc/server": "^10.18.0",
-		"proxy-deep": "^3.1.1",
-		"svelte": "^3.57.0"
+		"proxy-deep": "^3.1.1"
 	},
-	"devDependencies": {
-		"@typescript-eslint/eslint-plugin": "^5.56.0",
-		"@typescript-eslint/parser": "^5.56.0",
-		"eslint": "^8.36.0",
-		"typescript": "^4.9.5"
+	"peerDependencies": {
+		"@tanstack/svelte-query": "^5.8.2",
+		"@trpc/client": "^10.43.3",
+		"@trpc/server": "^10.43.3",
+		"@types/node": "^20.9.0",
+		"@typescript-eslint/eslint-plugin": "^6.10.0",
+		"@typescript-eslint/parser": "^6.10.0",
+		"eslint": "^8.53.0",
+		"svelte": "^4.2.3",
+		"typescript": "^5.2.2"
 	}
 }
