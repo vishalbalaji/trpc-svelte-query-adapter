@@ -144,16 +144,16 @@ Which can then be used in a component as such:
   import { trpc } from "$lib/trpc/client";
 
   const client = trpc();
-  const hello = client.greeting.createQuery("foo", { retry: false });
+  const foo = client.greeting.createQuery("foo", { retry: false });
 </script>
 
 <p>
-  {#if $hello.isLoading}
+  {#if $foo.isLoading}
     Loading...
-  {:else if $hello.isError}
-    Error: {$hello.error.message}
+  {:else if $foo.isError}
+    Error: {$foo.error.message}
   {:else}
-    {$hello.data}
+    {$foo.data}
   {/if}
 </p>
 ```
@@ -202,7 +202,7 @@ By default, these 3 procedures will pre-fetch the data required to pre-render th
 
 These procedures can be used as such:
 
-> **NOTE:** You can await the procedures first, but it is better to pass the promises directly as SvelteKit automatically resolves all these promises at the same time. [This excellent video by **Huntabyte**](https://www.youtube.com/watch?v=Ymk22rD8Lb4) explains this in detail.
+> **NOTE:** [Gotta await top-level promises from SvelteKit v2](https://kit.svelte.dev/docs/migrating-to-sveltekit-2#top-level-promises-are-no-longer-awaited).
 
 ```typescript
 // +page.ts
@@ -215,8 +215,8 @@ export const load = (async (event) => {
   const client = trpc(event, queryClient);
   
   return {
-    foo: client.greeting.createServerQuery('foo'),
-    queries: client.createServerQueries((t) =>
+    foo: await client.greeting.createServerQuery('foo'),
+    queries: await client.createServerQueries((t) =>
       ['bar', 'baz'].map((name) => t.greeting(name, { ssr: name !== 'baz' })), // pre-fetching disabled for the `baz` query.
     ),
   };
@@ -257,12 +257,6 @@ Then, in the component:
   <br />
 {/each}
 ```
-
-## Some Notes
-
-* This wrapper only supports `tRPC v10` onward.
-* This project was made purely for fun and not linked to official `tRPC` or `tanstack-query` development in any way. If any official adapters of this sort were to be released, this project would most likely be discontinued.
-
 [npm-url]: https://npmjs.org/package/trpc-svelte-query-adapter
 [npm-image]: https://img.shields.io/npm/v/trpc-svelte-query-adapter.svg
 [license-url]: LICENSE
