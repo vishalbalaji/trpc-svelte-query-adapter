@@ -215,11 +215,19 @@ interface CreateServerInfiniteQueryOptions<TOutput, TError, TData>
 	ssr?: boolean
 }
 
+export type ExtractCursorType<TInput> = TInput extends { cursor: any }
+  ? TInput['cursor']
+  : unknown;
+
+type InfiniteQueryOpts<TInput> = {
+  initialCursor?: ExtractCursorType<TInput>;
+}
+
 type CreateInfiniteQueryProcedure<TInput, TOutput, TError> = (TInput extends { cursor?: any }
 	? {
-		[ProcedureNames.infiniteQuery]: <TData = TOutput>(input: Omit<TInput, 'cursor'>, opts?: CreateInfiniteQueryOptions<TOutput, TError, TData> & TRPCQueryOpts)
+		[ProcedureNames.infiniteQuery]: <TData = TOutput>(input: Omit<TInput, 'cursor'>, opts?: CreateInfiniteQueryOptions<TOutput, TError, TData> & InfiniteQueryOpts<TInput> & TRPCQueryOpts)
 			=> CreateInfiniteQueryResult<TData, TError>,
-		[ProcedureNames.serverInfiniteQuery]: <TData = TOutput>(input: Omit<TInput, 'cursor'>, opts?: CreateServerInfiniteQueryOptions<TOutput, TError, TData> & TRPCQueryOpts)
+		[ProcedureNames.serverInfiniteQuery]: <TData = TOutput>(input: Omit<TInput, 'cursor'>, opts?: CreateServerInfiniteQueryOptions<TOutput, TError, TData> & InfiniteQueryOpts<TInput> & TRPCQueryOpts)
 			=> Promise<() => CreateInfiniteQueryResult<TData, TError>>,
 	}
 	: {}) & {}
@@ -476,7 +484,7 @@ const procedures: Record<PropertyKey,
 					queryKey: getArrayQueryKey(path, input, 'infinite'),
 					queryFn: ({ pageParam, signal }) => target.query({
 						...input,
-						cursor: pageParam,
+						cursor: pageParam ?? opts?.initialCursor,
 						...(shouldAbortOnUnmount && { signal }),
 
 					}),
@@ -492,7 +500,7 @@ const procedures: Record<PropertyKey,
 					queryKey: getArrayQueryKey(path, input, 'infinite'),
 					queryFn: ({ pageParam, signal }) => targetFn({
 						...input,
-						cursor: pageParam,
+						cursor: pageParam ?? opts?.initialCursor,
 						...(shouldAbortOnUnmount && { signal }),
 					}),
 				};
