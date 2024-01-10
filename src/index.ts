@@ -198,8 +198,8 @@ interface CreateServerQueryOptions<TOutput, TError, TData>
 }
 
 type TRPCQueryOpts = {
-	trpc: {
-		abortOnUnmount: boolean;
+	trpc?: {
+		abortOnUnmount?: boolean;
 	},
 };
 
