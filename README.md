@@ -99,7 +99,7 @@ export const trpc = svelteQueryWrapper<Router>({ client });
   const foo = trpc.greeting.createQuery('foo', { retry: false });
 </script>
 
-{#if $foo.isLoading}
+{#if $foo.isPending}
   Loading...
 {:else if $foo.isError}
   Error: {$foo.error.message}
@@ -129,7 +129,7 @@ const client = createTRPCProxyClient<Router>({
 });
 
 export function trpc(queryClient?: QueryClient) {
-  svelteQueryWrapper<Router>({
+  return svelteQueryWrapper<Router>({
     client,
     queryClient
   });
@@ -148,7 +148,7 @@ Which can then be used in a component as such:
 </script>
 
 <p>
-  {#if $foo.isLoading}
+  {#if $foo.isPending}
     Loading...
   {:else if $foo.isError}
     Error: {$foo.error.message}
@@ -237,7 +237,7 @@ Then, in the component:
   const queries = data.queries();
 </script>
 
-{#if $foo.isLoading}
+{#if $foo.isPending}
   Loading...
 {:else if $foo.isError}
   {$foo.error}
@@ -247,7 +247,7 @@ Then, in the component:
 <br />
 
 {#each $queries as query}
-  {#if query.isLoading}
+  {#if query.isPending}
     Loading...
   {:else if query.isError}
     {query.error.message}
