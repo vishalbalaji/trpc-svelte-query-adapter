@@ -202,7 +202,7 @@ By default, these 3 procedures will pre-fetch the data required to pre-render th
 
 These procedures can be used as such:
 
-> **NOTE:** [Gotta await top-level promises from SvelteKit v2](https://kit.svelte.dev/docs/migrating-to-sveltekit-2#top-level-promises-are-no-longer-awaited).
+> **NOTE:** [Gotta await top-level promises to pre-fetch data from SvelteKit v2](https://kit.svelte.dev/docs/migrating-to-sveltekit-2#top-level-promises-are-no-longer-awaited).
 
 ```typescript
 // +page.ts

@@ -9,25 +9,25 @@ import {
 	createMutation,
 	createInfiniteQuery,
 	createQueries,
-	CreateQueryOptions,
-	CreateMutationOptions,
-	CreateInfiniteQueryOptions,
-	InvalidateQueryFilters,
-	FetchQueryOptions,
-	FetchInfiniteQueryOptions,
-	InfiniteData,
-	RefetchQueryFilters,
-	RefetchOptions,
-	ResetOptions,
-	CancelOptions,
-	Updater,
-	SetDataOptions,
-	QueryClient,
-	InvalidateOptions,
-	QueryFilters,
-	CreateQueryResult,
-	CreateInfiniteQueryResult,
-	CreateMutationResult,
+	type CreateQueryOptions,
+	type CreateMutationOptions,
+	type CreateInfiniteQueryOptions,
+	type InvalidateQueryFilters,
+	type FetchQueryOptions,
+	type FetchInfiniteQueryOptions,
+	type InfiniteData,
+	type RefetchQueryFilters,
+	type RefetchOptions,
+	type ResetOptions,
+	type CancelOptions,
+	type Updater,
+	type SetDataOptions,
+	type QueryClient,
+	type InvalidateOptions,
+	type QueryFilters,
+	type CreateQueryResult,
+	type CreateInfiniteQueryResult,
+	type CreateMutationResult,
 } from '@tanstack/svelte-query';
 
 import { onDestroy } from 'svelte';
@@ -148,8 +148,8 @@ type CreateQueryOptionsForCreateQueries<TOutput, TError, TData> =
 
 type CreateQueriesRecord<TClient, TError> = { [K in keyof TClient]:
 	TClient[K] extends HasQuery
-	? <TOutput = Awaited<ReturnType<TClient[K]['query']>>,TData = TOutput>
-	(input: Parameters<TClient[K]['query']>[0], opts?: CreateQueryOptionsForCreateQueries<TOutput, TError,  TData>)
+	? <TOutput = Awaited<ReturnType<TClient[K]['query']>>, TData = TOutput>
+		(input: Parameters<TClient[K]['query']>[0], opts?: CreateQueryOptionsForCreateQueries<TOutput, TError, TData>)
 		=> CreateQueryOptionsForCreateQueries<TOutput, TError, TData>
 	: CreateQueriesRecord<TClient[K], TError>
 }
@@ -167,7 +167,7 @@ type CreateServerQueryOptionsForCreateQueries<TOutput, TError, TData> =
 type CreateServerQueriesRecord<TClient, TError> = { [K in keyof TClient]:
 	TClient[K] extends HasQuery
 	? <TOutput = Awaited<ReturnType<TClient[K]['query']>>, TData = TOutput>
-	(input: Parameters<TClient[K]['query']>[0], opts?: CreateServerQueryOptionsForCreateQueries<TOutput, TError, TData>)
+		(input: Parameters<TClient[K]['query']>[0], opts?: CreateServerQueryOptionsForCreateQueries<TOutput, TError, TData>)
 		=> CreateServerQueryOptionsForCreateQueries<TOutput, TError, TData>
 	: CreateQueriesRecord<TClient[K], TError>
 }
@@ -216,19 +216,19 @@ interface CreateServerInfiniteQueryOptions<TOutput, TError, TData>
 }
 
 export type ExtractCursorType<TInput> = TInput extends { cursor: any }
-  ? TInput['cursor']
-  : unknown;
+	? TInput['cursor']
+	: unknown;
 
 type InfiniteQueryOpts<TInput> = {
-  initialCursor?: ExtractCursorType<TInput>;
+	initialCursor?: ExtractCursorType<TInput>;
 }
 
 type CreateInfiniteQueryProcedure<TInput, TOutput, TError> = (TInput extends { cursor?: any }
 	? {
 		[ProcedureNames.infiniteQuery]: <TData = TOutput>(input: Omit<TInput, 'cursor'>, opts?: CreateInfiniteQueryOptions<TOutput, TError, TData> & InfiniteQueryOpts<TInput> & TRPCQueryOpts)
-			=> CreateInfiniteQueryResult<TData, TError>,
+			=> CreateInfiniteQueryResult<InfiniteData<TData>, TError>,
 		[ProcedureNames.serverInfiniteQuery]: <TData = TOutput>(input: Omit<TInput, 'cursor'>, opts?: CreateServerInfiniteQueryOptions<TOutput, TError, TData> & InfiniteQueryOpts<TInput> & TRPCQueryOpts)
-			=> Promise<() => CreateInfiniteQueryResult<TData, TError>>,
+			=> Promise<() => CreateInfiniteQueryResult<InfiniteData<TData>, TError>>,
 	}
 	: {}) & {}
 
@@ -288,124 +288,124 @@ const utilsProcedures: Record<PropertyKey,
 		queryClient: QueryClient,
 		target: any
 	}) => any> = {
-		[UtilsProcedureNames.fetch]: ({ path, queryClient, target }) => {
-			return (input: any, opts?: any) => {
-				return queryClient.fetchQuery({
-					...opts,
-					queryKey: getArrayQueryKey(path, input, 'query'),
-					queryFn: () => target.query(input),
-				});
-			};
-		},
-		[UtilsProcedureNames.prefetch]: ({ path, queryClient, target }) => {
-			return (input: any, opts?: any) => {
-				return queryClient.prefetchQuery({
-					...opts,
-					queryKey: getArrayQueryKey(path, input, 'query'),
-					queryFn: () => target.query(input),
-				});
-			};
-		},
-		[UtilsProcedureNames.fetchInfinite]: ({ path, queryClient, target }) => {
-			return (input: any, opts?: any) => {
-				return queryClient.fetchInfiniteQuery({
-					...opts,
-					queryKey: getArrayQueryKey(path, input, 'infinite'),
-					queryFn: ({ pageParam }: { pageParam: number }) => target.query({ ...input, cursor: pageParam }),
-				});
-			};
-		},
-		[UtilsProcedureNames.prefetchInfinite]: ({ path, queryClient, target }) => {
-			return (input: any, opts?: any) => {
-				return queryClient.prefetchInfiniteQuery({
-					...opts,
-					queryKey: getArrayQueryKey(path, input, 'infinite'),
-					queryFn: ({ pageParam }: { pageParam: number }) => target.query({ ...input, cursor: pageParam }),
-				});
-			};
-		},
-		[UtilsProcedureNames.ensureData]: ({ path, queryClient, target }) => {
-			return (input: any, opts?: any) => {
-				return queryClient.ensureQueryData({
-					...opts,
-					queryKey: getArrayQueryKey(path, input, 'query'),
-					queryFn: () => target.query(input),
-				});
-			};
-		},
-		[UtilsProcedureNames.invalidate]: ({ path, queryClient }) => {
-			return (input?: any, filters?: any, options?: any) => {
-				return queryClient.invalidateQueries({
+	[UtilsProcedureNames.fetch]: ({ path, queryClient, target }) => {
+		return (input: any, opts?: any) => {
+			return queryClient.fetchQuery({
+				...opts,
+				queryKey: getArrayQueryKey(path, input, 'query'),
+				queryFn: () => target.query(input),
+			});
+		};
+	},
+	[UtilsProcedureNames.prefetch]: ({ path, queryClient, target }) => {
+		return (input: any, opts?: any) => {
+			return queryClient.prefetchQuery({
+				...opts,
+				queryKey: getArrayQueryKey(path, input, 'query'),
+				queryFn: () => target.query(input),
+			});
+		};
+	},
+	[UtilsProcedureNames.fetchInfinite]: ({ path, queryClient, target }) => {
+		return (input: any, opts?: any) => {
+			return queryClient.fetchInfiniteQuery({
+				...opts,
+				queryKey: getArrayQueryKey(path, input, 'infinite'),
+				queryFn: ({ pageParam }: { pageParam: number }) => target.query({ ...input, cursor: pageParam }),
+			});
+		};
+	},
+	[UtilsProcedureNames.prefetchInfinite]: ({ path, queryClient, target }) => {
+		return (input: any, opts?: any) => {
+			return queryClient.prefetchInfiniteQuery({
+				...opts,
+				queryKey: getArrayQueryKey(path, input, 'infinite'),
+				queryFn: ({ pageParam }: { pageParam: number }) => target.query({ ...input, cursor: pageParam }),
+			});
+		};
+	},
+	[UtilsProcedureNames.ensureData]: ({ path, queryClient, target }) => {
+		return (input: any, opts?: any) => {
+			return queryClient.ensureQueryData({
+				...opts,
+				queryKey: getArrayQueryKey(path, input, 'query'),
+				queryFn: () => target.query(input),
+			});
+		};
+	},
+	[UtilsProcedureNames.invalidate]: ({ path, queryClient }) => {
+		return (input?: any, filters?: any, options?: any) => {
+			return queryClient.invalidateQueries({
+				...filters,
+				queryKey: getArrayQueryKey(path, input, 'any'),
+			}, options);
+		};
+	},
+	[UtilsProcedureNames.refetch]: ({ path, queryClient }) => {
+		return (input?: any, filters?: any, options?: any) => {
+			return queryClient.refetchQueries({
+				...filters,
+				queryKey: getArrayQueryKey(path, input, 'any'),
+			}, options);
+		};
+	},
+	[UtilsProcedureNames.cancel]: ({ path, queryClient }) => {
+		return (input?: any, filters?: any, options?: any) => {
+			return queryClient.cancelQueries(
+				{
 					...filters,
 					queryKey: getArrayQueryKey(path, input, 'any'),
-				}, options);
-			};
-		},
-		[UtilsProcedureNames.refetch]: ({ path, queryClient }) => {
-			return (input?: any, filters?: any, options?: any) => {
-				return queryClient.refetchQueries({
+				},
+				options
+			);
+		};
+	},
+	[UtilsProcedureNames.reset]: ({ queryClient, path }) => {
+		return (input?: any, filters?: any, options?: any) => {
+			return queryClient.resetQueries(
+				{
 					...filters,
 					queryKey: getArrayQueryKey(path, input, 'any'),
-				}, options);
-			};
-		},
-		[UtilsProcedureNames.cancel]: ({ path, queryClient }) => {
-			return (input?: any, filters?: any, options?: any) => {
-				return queryClient.cancelQueries(
-					{
-						...filters,
-						queryKey: getArrayQueryKey(path, input, 'any'),
-					},
-					options
-				);
-			};
-		},
-		[UtilsProcedureNames.reset]: ({ queryClient, path }) => {
-			return (input?: any, filters?: any, options?: any) => {
-				return queryClient.resetQueries(
-					{
-						...filters,
-						queryKey: getArrayQueryKey(path, input, 'any'),
-					},
-					options
-				);
-			};
-		},
-		[UtilsProcedureNames.setData]: ({ queryClient, path }) => {
-			return (input: any, updater: any, options?: any) => {
-				return queryClient.setQueryData(
-					getArrayQueryKey(path, input, 'query'),
-					updater,
-					options
-				);
-			};
-		},
-		[UtilsProcedureNames.setInfiniteData]: ({ queryClient, path }) => {
-			return (input: any, updater: any, options?: any) => {
-				return queryClient.setQueryData(
-					getArrayQueryKey(path, input, 'infinite'),
-					updater,
-					options
-				);
-			};
-		},
-		[UtilsProcedureNames.getData]: ({ queryClient, path }) => {
-			return (input?: any, filters?: any) => {
-				return queryClient.getQueryData({
-					...filters,
-					queryKey: getArrayQueryKey(path, input, 'query'),
-				});
-			};
-		},
-		[UtilsProcedureNames.getInfiniteData]: ({ queryClient, path }) => {
-			return (input?: any, filters?: any) => {
-				return queryClient.getQueryData({
-					queryKey: getArrayQueryKey(path, input, 'infinite'),
-					...filters,
-				});
-			};
-		},
-	};
+				},
+				options
+			);
+		};
+	},
+	[UtilsProcedureNames.setData]: ({ queryClient, path }) => {
+		return (input: any, updater: any, options?: any) => {
+			return queryClient.setQueryData(
+				getArrayQueryKey(path, input, 'query'),
+				updater,
+				options
+			);
+		};
+	},
+	[UtilsProcedureNames.setInfiniteData]: ({ queryClient, path }) => {
+		return (input: any, updater: any, options?: any) => {
+			return queryClient.setQueryData(
+				getArrayQueryKey(path, input, 'infinite'),
+				updater,
+				options
+			);
+		};
+	},
+	[UtilsProcedureNames.getData]: ({ queryClient, path }) => {
+		return (input?: any, filters?: any) => {
+			return queryClient.getQueryData({
+				...filters,
+				queryKey: getArrayQueryKey(path, input, 'query'),
+			});
+		};
+	},
+	[UtilsProcedureNames.getInfiniteData]: ({ queryClient, path }) => {
+		return (input?: any, filters?: any) => {
+			return queryClient.getQueryData({
+				queryKey: getArrayQueryKey(path, input, 'infinite'),
+				...filters,
+			});
+		};
+	},
+};
 
 function createUtilsProxy(client: any, queryClient: QueryClient) {
 	return new DeepProxy({}, {
@@ -432,168 +432,168 @@ const procedures: Record<PropertyKey,
 		abortOnUnmount?: boolean,
 	}) => any>
 	= {
-		[ProcedureNames.queryKey]: ({ path }) => {
-			return (input: any, opts?: any) => getArrayQueryKey(path, input, opts);
-		},
-		[ProcedureNames.query]: ({ path, target, abortOnUnmount }) => {
-			const targetFn = target.query;
+	[ProcedureNames.queryKey]: ({ path }) => {
+		return (input: any, opts?: any) => getArrayQueryKey(path, input, opts);
+	},
+	[ProcedureNames.query]: ({ path, target, abortOnUnmount }) => {
+		const targetFn = target.query;
 
-			return (input: any, opts?: any) => {
-				const shouldAbortOnUnmount = opts?.trpc?.abortOnUnmount ?? abortOnUnmount;
-				return createQuery({
-					...opts,
-					queryKey: getArrayQueryKey(path, input, 'query'),
-					queryFn: ({ signal }) => targetFn(input, {
-						...(shouldAbortOnUnmount && { signal }),
-					}),
-				});
+		return (input: any, opts?: any) => {
+			const shouldAbortOnUnmount = opts?.trpc?.abortOnUnmount ?? abortOnUnmount;
+			return createQuery({
+				...opts,
+				queryKey: getArrayQueryKey(path, input, 'query'),
+				queryFn: ({ signal }) => targetFn(input, {
+					...(shouldAbortOnUnmount && { signal }),
+				}),
+			});
+		};
+	},
+	[ProcedureNames.serverQuery]: ({ path, target, queryClient, abortOnUnmount }) => {
+		const targetFn = target.query;
+
+		return async (input: any, opts?: any) => {
+			const shouldAbortOnUnmount = opts?.trpc?.abortOnUnmount ?? abortOnUnmount;
+			const query: FetchQueryOptions = {
+				queryKey: getArrayQueryKey(path, input, 'query'),
+				queryFn: ({ signal }) => targetFn(input, {
+					...(shouldAbortOnUnmount && { signal }),
+				}),
 			};
-		},
-		[ProcedureNames.serverQuery]: ({ path, target, queryClient, abortOnUnmount }) => {
-			const targetFn = target.query;
 
-			return async (input: any, opts?: any) => {
-				const shouldAbortOnUnmount = opts?.trpc?.abortOnUnmount ?? abortOnUnmount;
-				const query: FetchQueryOptions = {
-					queryKey: getArrayQueryKey(path, input, 'query'),
-					queryFn: ({ signal }) => targetFn(input, {
-						...(shouldAbortOnUnmount && { signal }),
-					}),
-				};
+			const cache = queryClient.getQueryCache().find({ queryKey: query.queryKey });
+			const cacheNotFound = !cache?.state?.data;
+			if (opts?.ssr !== false && cacheNotFound) {
+				await queryClient.prefetchQuery(query);
+			}
 
-				const cache = queryClient.getQueryCache().find({ queryKey: query.queryKey });
-				const cacheNotFound = !cache?.state?.data;
-				if (opts?.ssr !== false && cacheNotFound) {
-					await queryClient.prefetchQuery(query);
-				}
+			return () => createQuery({
+				...opts,
+				...query,
+				...(cacheNotFound ?
+					{ refetchOnMount: opts?.refetchOnMount ?? false } : {}
+				),
+			});
+		};
+	},
+	[ProcedureNames.infiniteQuery]: ({ path, target, abortOnUnmount }) => {
+		return (input: any, opts?: any) => {
+			const shouldAbortOnUnmount = opts?.trpc?.abortOnUnmount ?? abortOnUnmount;
+			return createInfiniteQuery({
+				...opts,
+				queryKey: getArrayQueryKey(path, input, 'infinite'),
+				queryFn: ({ pageParam, signal }) => target.query({
+					...input,
+					cursor: pageParam ?? opts?.initialCursor,
+					...(shouldAbortOnUnmount && { signal }),
 
-				return () => createQuery({
-					...opts,
-					...query,
-					...(cacheNotFound ?
-						{ refetchOnMount: opts?.refetchOnMount ?? false } : {}
-					),
-				});
+				}),
+			});
+		};
+	},
+	[ProcedureNames.serverInfiniteQuery]: ({ path, target, queryClient, abortOnUnmount }) => {
+		const targetFn = target.query;
+
+		return async (input: any, opts?: any) => {
+			const shouldAbortOnUnmount = opts?.trpc?.abortOnUnmount ?? abortOnUnmount;
+			const query: Omit<FetchInfiniteQueryOptions, 'initialPageParam'> = {
+				queryKey: getArrayQueryKey(path, input, 'infinite'),
+				queryFn: ({ pageParam, signal }) => targetFn({
+					...input,
+					cursor: pageParam ?? opts?.initialCursor,
+					...(shouldAbortOnUnmount && { signal }),
+				}),
 			};
-		},
-		[ProcedureNames.infiniteQuery]: ({ path, target, abortOnUnmount }) => {
-			return (input: any, opts?: any) => {
-				const shouldAbortOnUnmount = opts?.trpc?.abortOnUnmount ?? abortOnUnmount;
-				return createInfiniteQuery({
-					...opts,
-					queryKey: getArrayQueryKey(path, input, 'infinite'),
-					queryFn: ({ pageParam, signal }) => target.query({
-						...input,
-						cursor: pageParam ?? opts?.initialCursor,
-						...(shouldAbortOnUnmount && { signal }),
 
-					}),
-				});
-			};
-		},
-		[ProcedureNames.serverInfiniteQuery]: ({ path, target, queryClient, abortOnUnmount }) => {
-			const targetFn = target.query;
+			const cache = queryClient.getQueryCache().find({ queryKey: query.queryKey });
+			const cacheNotFound = !cache?.state?.data;
+			if (opts?.ssr !== false && cacheNotFound) {
+				await queryClient.prefetchInfiniteQuery(query as any);
+			}
 
-			return async (input: any, opts?: any) => {
-				const shouldAbortOnUnmount = opts?.trpc?.abortOnUnmount ?? abortOnUnmount;
-				const query: Omit<FetchInfiniteQueryOptions, 'initialPageParam'> = {
-					queryKey: getArrayQueryKey(path, input, 'infinite'),
-					queryFn: ({ pageParam, signal }) => targetFn({
-						...input,
-						cursor: pageParam ?? opts?.initialCursor,
-						...(shouldAbortOnUnmount && { signal }),
-					}),
-				};
+			return () => createInfiniteQuery({
+				...opts,
+				...query,
+				...(cacheNotFound ?
+					{ refetchOnMount: opts?.refetchOnMount ?? false } : {}
+				),
+			});
+		};
+	},
+	[ProcedureNames.mutate]: ({ path, target }) => {
+		return (opts?: any) => {
+			return createMutation({
+				...opts,
+				mutationKey: path,
+				mutationFn: (data) => target.mutate(data),
+			});
+		};
+	},
+	[ProcedureNames.subscribe]: ({ target }) => {
+		return (input: any, opts?: any) => {
+			const enabled = opts?.enabled ?? true;
+			if (!enabled) return;
 
-				const cache = queryClient.getQueryCache().find({ queryKey: query.queryKey });
-				const cacheNotFound = !cache?.state?.data;
-				if (opts?.ssr !== false && cacheNotFound) {
-					await queryClient.prefetchInfiniteQuery(query as any);
-				}
+			let isStopped = false;
+			const subscription = target.subscribe(input, {
+				onStarted: () => {
+					if (!isStopped) opts?.onStarted?.();
+				},
+				onData: (data: any) => {
+					if (!isStopped) opts?.onData?.(data);
+				},
+				onError: (err: any) => {
+					if (!isStopped) opts?.onError?.(err);
+				},
+			});
 
-				return () => createInfiniteQuery({
-					...opts,
-					...query,
-					...(cacheNotFound ?
-						{ refetchOnMount: opts?.refetchOnMount ?? false } : {}
-					),
-				});
-			};
-		},
-		[ProcedureNames.mutate]: ({ path, target }) => {
-			return (opts?: any) => {
-				return createMutation({
-					...opts,
-					mutationKey: path,
-					mutationFn: (data) => target.mutate(data),
-				});
-			};
-		},
-		[ProcedureNames.subscribe]: ({ target }) => {
-			return (input: any, opts?: any) => {
-				const enabled = opts?.enabled ?? true;
-				if (!enabled) return;
-
-				let isStopped = false;
-				const subscription = target.subscribe(input, {
-					onStarted: () => {
-						if (!isStopped) opts?.onStarted?.();
-					},
-					onData: (data: any) => {
-						if (!isStopped) opts?.onData?.(data);
-					},
-					onError: (err: any) => {
-						if (!isStopped) opts?.onError?.(err);
-					},
-				});
-
-				return onDestroy(() => {
-					isStopped = true;
-					subscription.unsubscribe();
-				});
-			};
-		},
-		[ProcedureNames.queries]: ({ path, queriesProxy }) => {
-			if (path.length !== 0) return;
-			return (input: (...args: any[]) => any) => {
-				const proxy = queriesProxy();
-				return createQueries(input(proxy));
-			};
-		},
-		[ProcedureNames.serverQueries]: ({ path, queriesProxy, queryClient }) => {
-			if (path.length !== 0) return;
+			return onDestroy(() => {
+				isStopped = true;
+				subscription.unsubscribe();
+			});
+		};
+	},
+	[ProcedureNames.queries]: ({ path, queriesProxy }) => {
+		if (path.length !== 0) return;
+		return (input: (...args: any[]) => any) => {
 			const proxy = queriesProxy();
+			return createQueries(input(proxy));
+		};
+	},
+	[ProcedureNames.serverQueries]: ({ path, queriesProxy, queryClient }) => {
+		if (path.length !== 0) return;
+		const proxy = queriesProxy();
 
-			return async (input: (...args: any[]) => any) => {
-				const queryKeys = await Promise.all(
-					input(proxy).map(async (query: any) => {
-						const cache = queryClient.getQueryCache().find(query.queryKey);
-						const cacheNotFound = !cache?.state?.data;
+		return async (input: (...args: any[]) => any) => {
+			const queryKeys = await Promise.all(
+				input(proxy).map(async (query: any) => {
+					const cache = queryClient.getQueryCache().find(query.queryKey);
+					const cacheNotFound = !cache?.state?.data;
 
-						if (query.ssr !== false && cacheNotFound) {
-							await queryClient.prefetchQuery(query);
-						}
+					if (query.ssr !== false && cacheNotFound) {
+						await queryClient.prefetchQuery(query);
+					}
 
-						return {
-							...query,
-							...(cacheNotFound ?
-								{ refetchOnMount: query.refetchOnMount ?? false } : {}
-							),
-						};
-					})
-				);
-				return () => createQueries({ queries: queryKeys });
-			};
-		},
-		[ProcedureNames.utils]: ({ path, utilsProxy }) => {
-			if (path.length !== 0) return;
-			return utilsProxy;
-		},
-		[ProcedureNames.context]: ({ path, utilsProxy }) => {
-			if (path.length !== 0) return;
-			return utilsProxy;
-		},
-	};
+					return {
+						...query,
+						...(cacheNotFound ?
+							{ refetchOnMount: query.refetchOnMount ?? false } : {}
+						),
+					};
+				})
+			);
+			return () => createQueries({ queries: queryKeys });
+		};
+	},
+	[ProcedureNames.utils]: ({ path, utilsProxy }) => {
+		if (path.length !== 0) return;
+		return utilsProxy;
+	},
+	[ProcedureNames.context]: ({ path, utilsProxy }) => {
+		if (path.length !== 0) return;
+		return utilsProxy;
+	},
+};
 
 // getQueryKey
 type QueryType = 'query' | 'infinite' | 'any';
