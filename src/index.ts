@@ -122,12 +122,12 @@ type UtilsProcedures<TInput = undefined, TOutput = undefined, TError = undefined
 	/**
 	 * @link https://tanstack.com/query/v4/docs/reference/QueryClient#queryclientgetquerydata
 	 */
-	[UtilsProcedureNames.getData](input?: TInput, filters?: QueryFilters): TOutput | undefined
+	[UtilsProcedureNames.getData](input?: TInput): TOutput | undefined
 
 	/**
 	 * @link https://tanstack.com/query/v4/docs/reference/QueryClient#queryclientgetquerydata
 	 */
-	[UtilsProcedureNames.getInfiniteData](input?: TInput, filters?: QueryFilters): InfiniteData<TOutput> | undefined
+	[UtilsProcedureNames.getInfiniteData](input?: TInput): InfiniteData<TOutput> | undefined
 }
 
 type AddUtilsPropTypes<TClient, TError> = {
@@ -387,19 +387,13 @@ const utilsProcedures: Record<PropertyKey,
 			};
 		},
 		[UtilsProcedureNames.getData]: ({ queryClient, path }) => {
-			return (input?: any, filters?: any) => {
-				return queryClient.getQueryData({
-					...filters,
-					queryKey: getArrayQueryKey(path, input, 'query'),
-				});
+			return (input?: any) => {
+				return queryClient.getQueryData(getArrayQueryKey(path, input, 'query'));
 			};
 		},
 		[UtilsProcedureNames.getInfiniteData]: ({ queryClient, path }) => {
-			return (input?: any, filters?: any) => {
-				return queryClient.getQueryData({
-					queryKey: getArrayQueryKey(path, input, 'infinite'),
-					...filters,
-				});
+			return (input?: any) => {
+				return queryClient.getQueryData(getArrayQueryKey(path, input, 'infinite'));
 			};
 		},
 	};
