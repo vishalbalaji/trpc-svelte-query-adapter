@@ -35,14 +35,16 @@
 	"dependencies": {
 		"proxy-deep": "^3.1.1"
 	},
+	"devDependencies": {
+		"@types/node": "^20.9.0",
+		"@typescript-eslint/eslint-plugin": "^6.10.0",
+		"@typescript-eslint/parser": "^6.10.0",
+		"eslint": "^8.53.0"
+	},
 	"peerDependencies": {
 		"@tanstack/svelte-query": "^5.8.2",
 		"@trpc/client": "^10.43.3",
 		"@trpc/server": "^10.43.3",
-		"@types/node": "^20.9.0",
-		"@typescript-eslint/eslint-plugin": "^6.10.0",
-		"@typescript-eslint/parser": "^6.10.0",
-		"eslint": "^8.53.0",
 		"svelte": "^4.2.3",
 		"typescript": "^5.2.2"
 	}
