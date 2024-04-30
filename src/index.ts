@@ -617,7 +617,7 @@ function getArrayQueryKey(
 	];
 }
 
-type GetQueryKey<TInput = undefined> = TInput extends undefined
+type GetQueryKey<TInput = undefined> = [TInput] extends [undefined | void]
 	? {
 		[ProcedureNames.queryKey]: () => QueryKey
 	}
