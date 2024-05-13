@@ -30,7 +30,8 @@
 	"main": "dist/index.js",
 	"types": "dist/index.d.ts",
 	"scripts": {
-		"build": "tsc"
+		"build": "tsc",
+		"lint": "eslint src/**/* --ext .js --ext .ts"
 	},
 	"dependencies": {
 		"proxy-deep": "^3.1.1"
