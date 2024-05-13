@@ -139,7 +139,7 @@ export function trpc(queryClient?: QueryClient) {
 Which can then be used in a component as such:
 
 ```svelte
-<!-- routes/+page.ts -->
+<!-- routes/+page.svelte -->
 <script lang="ts">
   import { trpc } from "$lib/trpc/client";
 
@@ -257,6 +257,36 @@ Then, in the component:
   <br />
 {/each}
 ```
+
+You can also optionally pass new inputs to the query from the client side(see #34) like so:
+
+```svelte
+<script lang="ts">
+  import { page } from "$app/stores";
+  import type { PageData } from "./$types";
+
+  export let data: PageData;
+
+  let name = 'foo';
+
+  $: foo = data.foo(name); // `$` label to make the query reactive to the input
+
+  // You can also access the default input if you pass in a callback as the new input:
+  // $: foo = data.foo((old) => old + name);
+</script>
+
+{#if $foo.isPending}
+  Loading...
+{:else if $foo.isError}
+  {$foo.error}
+{:else if $foo.data}
+  {$foo.data}
+{/if}
+<br />
+
+<input bind:value={name} />
+```
+
 [npm-url]: https://npmjs.org/package/trpc-svelte-query-adapter
 [npm-image]: https://img.shields.io/npm/v/trpc-svelte-query-adapter.svg
 [license-url]: LICENSE
