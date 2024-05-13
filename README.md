@@ -258,7 +258,7 @@ Then, in the component:
 {/each}
 ```
 
-You can also optionally pass new inputs to the query from the client side(see #34) like so:
+You can also optionally pass new inputs to the queries and infinite queries  from the client side(see #34) like so:
 
 ```svelte
 <script lang="ts">
@@ -268,11 +268,14 @@ You can also optionally pass new inputs to the query from the client side(see #3
   export let data: PageData;
 
   let name = 'foo';
+  let newNames: string[] = [];
 
   $: foo = data.foo(name); // `$` label to make the query reactive to the input
 
   // You can also access the default input if you pass in a callback as the new input:
   // $: foo = data.foo((old) => old + name);
+
+  $: queries = data.queries((t, old) => [...old, ...newNames.map((name) => t.greeting(name))]);
 </script>
 
 {#if $foo.isPending}
@@ -282,9 +285,31 @@ You can also optionally pass new inputs to the query from the client side(see #3
 {:else if $foo.data}
   {$foo.data}
 {/if}
-<br />
 
+<br />
 <input bind:value={name} />
+
+<br /><br />
+
+{#each $queries as query}
+  {#if query.isPending}
+    Loading...
+  {:else if query.isError}
+    {query.error.message}
+  {:else if query.data}
+    {query.data}
+  {/if}
+  <br />
+{/each}
+
+<form on:submit|preventDefault={(e) => {
+  const data = new FormData(e.currentTarget).get('name');
+  if (typeof data === 'string') newNames.push(data);
+  newNames = newNames;
+}}>
+  <input name="name" />
+  <button type="submit">Submit</button>
+</form>
 ```
 
 [npm-url]: https://npmjs.org/package/trpc-svelte-query-adapter

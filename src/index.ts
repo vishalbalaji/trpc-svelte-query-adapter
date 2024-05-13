@@ -172,7 +172,7 @@ type CreateServerQueriesRecord<TClient, TError> = { [K in keyof TClient]:
 
 type CreateServerQueries<TClient, TError> = <TOpts extends CreateQueryOptionsForCreateQueries<any, any, any>[]>(
 	queriesCallback: (t: CreateServerQueriesRecord<OnlyQueries<TClient>, TError>) => readonly [...TOpts]
-) => Promise<() => CreateQueriesResult<TOpts>>
+) => Promise<(queriesCallback?: (t: CreateQueriesRecord<OnlyQueries<TClient>, TError>, old: readonly [...TOpts]) => readonly [...TOpts]) => CreateQueriesResult<TOpts>>
 
 // Procedures
 const ProcedureNames = {
@@ -588,7 +588,7 @@ const procedures: Record<PropertyKey,
 			const proxy = queriesProxy();
 
 			return async (input: (...args: any[]) => any) => {
-				const queryKeys = await Promise.all(
+				const queries = await Promise.all(
 					input(proxy).map(async (query: any) => {
 						const cache = queryClient.getQueryCache().find(query.queryKey);
 						const cacheNotFound = !cache?.state?.data;
@@ -605,7 +605,12 @@ const procedures: Record<PropertyKey,
 						};
 					})
 				);
-				return () => createQueries({ queries: queryKeys });
+
+				return (newInput?: (...args: any[]) => any) => {
+					let newQueries = queries;
+					if (newInput) newQueries = newInput(proxy, queries);
+					return createQueries({ queries: newQueries });
+				};
 			};
 		},
 		[ProcedureNames.utils]: ({ path, utilsProxy }) => {
@@ -708,3 +713,5 @@ export function svelteQueryWrapper<TRouter extends AnyRouter>({
 		},
 	});
 }
+
+
