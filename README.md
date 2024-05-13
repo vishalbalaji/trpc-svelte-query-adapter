@@ -139,7 +139,7 @@ export function trpc(queryClient?: QueryClient) {
 Which can then be used in a component as such:
 
 ```svelte
-<!-- routes/+page.ts -->
+<!-- routes/+page.svelte -->
 <script lang="ts">
   import { trpc } from "$lib/trpc/client";
 
@@ -257,6 +257,61 @@ Then, in the component:
   <br />
 {/each}
 ```
+
+You can also optionally pass new inputs to the queries and infinite queries  from the client side(see [#34](/../../issues/34)) like so:
+
+```svelte
+<script lang="ts">
+  import { page } from "$app/stores";
+  import type { PageData } from "./$types";
+
+  export let data: PageData;
+
+  let name = 'foo';
+  let newNames: string[] = [];
+
+  $: foo = data.foo(name); // `$` label to make the query reactive to the input
+
+  // You can also access the default input if you pass in a callback as the new input:
+  // $: foo = data.foo((old) => old + name);
+
+  $: queries = data.queries((t, old) => [...old, ...newNames.map((name) => t.greeting(name))]);
+</script>
+
+{#if $foo.isPending}
+  Loading...
+{:else if $foo.isError}
+  {$foo.error}
+{:else if $foo.data}
+  {$foo.data}
+{/if}
+
+<br />
+<input bind:value={name} />
+
+<br /><br />
+
+{#each $queries as query}
+  {#if query.isPending}
+    Loading...
+  {:else if query.isError}
+    {query.error.message}
+  {:else if query.data}
+    {query.data}
+  {/if}
+  <br />
+{/each}
+
+<form on:submit|preventDefault={(e) => {
+  const data = new FormData(e.currentTarget).get('name');
+  if (typeof data === 'string') newNames.push(data);
+  newNames = newNames;
+}}>
+  <input name="name" />
+  <button type="submit">Submit</button>
+</form>
+```
+
 [npm-url]: https://npmjs.org/package/trpc-svelte-query-adapter
 [npm-image]: https://img.shields.io/npm/v/trpc-svelte-query-adapter.svg
 [license-url]: LICENSE

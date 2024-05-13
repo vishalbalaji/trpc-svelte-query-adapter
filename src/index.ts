@@ -172,7 +172,7 @@ type CreateServerQueriesRecord<TClient, TError> = { [K in keyof TClient]:
 
 type CreateServerQueries<TClient, TError> = <TOpts extends CreateQueryOptionsForCreateQueries<any, any, any>[]>(
 	queriesCallback: (t: CreateServerQueriesRecord<OnlyQueries<TClient>, TError>) => readonly [...TOpts]
-) => Promise<() => CreateQueriesResult<TOpts>>
+) => Promise<(queriesCallback?: (t: CreateQueriesRecord<OnlyQueries<TClient>, TError>, old: readonly [...TOpts]) => readonly [...TOpts]) => CreateQueriesResult<TOpts>>
 
 // Procedures
 const ProcedureNames = {
@@ -204,7 +204,7 @@ type CreateQueryProcedure<TInput, TOutput, TError> = {
 	[ProcedureNames.query]: <TData = TOutput>(input: TInput, opts?: CreateTRPCQueryOptions<TOutput, TError, TData> & TRPCQueryOpts)
 		=> CreateQueryResult<TData, TError>,
 	[ProcedureNames.serverQuery]: <TData = TOutput>(input: TInput, opts?: CreateTRPCServerQueryOptions<TOutput, TError, TData> & TRPCQueryOpts)
-		=> Promise<() => CreateQueryResult<TData, TError>>,
+		=> Promise<(input?: TInput | ((old: TInput) => TInput)) => CreateQueryResult<TData, TError>>,
 } & {}
 
 type CreateTRPCInfiniteQueryOptions<TOutput, TError, TData> = Omit<CreateInfiniteQueryOptions<TOutput, TError, TData>, 'queryKey' | 'queryFn'>;
@@ -225,7 +225,7 @@ type CreateInfiniteQueryProcedure<TInput, TOutput, TError> = (TInput extends { c
 		[ProcedureNames.infiniteQuery]: <TData = TOutput>(input: Omit<TInput, 'cursor'>, opts?: CreateTRPCInfiniteQueryOptions<TOutput, TError, TData> & InfiniteQueryOpts<TInput> & TRPCQueryOpts)
 			=> CreateInfiniteQueryResult<InfiniteData<TData>, TError>,
 		[ProcedureNames.serverInfiniteQuery]: <TData = TOutput>(input: Omit<TInput, 'cursor'>, opts?: CreateTRPCServerInfiniteQueryOptions<TOutput, TError, TData> & InfiniteQueryOpts<TInput> & TRPCQueryOpts)
-			=> Promise<() => CreateInfiniteQueryResult<InfiniteData<TData>, TError>>,
+			=> Promise<(input?: TInput | ((old: TInput) => TInput)) => CreateInfiniteQueryResult<InfiniteData<TData>, TError>>,
 	}
 	: {}) & {}
 
@@ -458,13 +458,28 @@ const procedures: Record<PropertyKey,
 					await queryClient.prefetchQuery(query);
 				}
 
-				return () => createQuery({
-					...opts,
-					...query,
-					...(cacheNotFound ?
-						{ refetchOnMount: opts?.refetchOnMount ?? false } : {}
-					),
-				});
+				return (newInput?: any) => {
+					let newQuery = query;
+
+					if (newInput) {
+						let i = newInput;
+						if (typeof newInput === 'function') i = newInput(input);
+						newQuery = {
+							queryKey: getArrayQueryKey(path, i, 'query'),
+							queryFn: ({ signal }) => targetFn(i, {
+								...(shouldAbortOnUnmount && { signal }),
+							}),
+						};
+					}
+
+					return createQuery({
+						...opts,
+						...newQuery,
+						...(cacheNotFound ?
+							{ refetchOnMount: opts?.refetchOnMount ?? false } : {}
+						),
+					});
+				};
 			};
 		},
 		[ProcedureNames.infiniteQuery]: ({ path, target, abortOnUnmount }) => {
@@ -502,13 +517,30 @@ const procedures: Record<PropertyKey,
 					await queryClient.prefetchInfiniteQuery(query as any);
 				}
 
-				return () => createInfiniteQuery({
-					...opts,
-					...query,
-					...(cacheNotFound ?
-						{ refetchOnMount: opts?.refetchOnMount ?? false } : {}
-					),
-				});
+				return (newInput?: any) => {
+					let newQuery = query;
+
+					if (newInput) {
+						let i = newInput;
+						if (typeof newInput === 'function') i = newInput(input);
+						newQuery = {
+							queryKey: getArrayQueryKey(path, i, 'infinite'),
+							queryFn: ({ pageParam, signal }) => targetFn({
+								...i,
+								cursor: pageParam ?? opts?.initialCursor,
+								...(shouldAbortOnUnmount && { signal }),
+							}),
+						};
+					}
+
+					return createInfiniteQuery({
+						...opts,
+						...newQuery,
+						...(cacheNotFound ?
+							{ refetchOnMount: opts?.refetchOnMount ?? false } : {}
+						),
+					});
+				};
 			};
 		},
 		[ProcedureNames.mutate]: ({ path, target }) => {
@@ -556,7 +588,7 @@ const procedures: Record<PropertyKey,
 			const proxy = queriesProxy();
 
 			return async (input: (...args: any[]) => any) => {
-				const queryKeys = await Promise.all(
+				const queries = await Promise.all(
 					input(proxy).map(async (query: any) => {
 						const cache = queryClient.getQueryCache().find(query.queryKey);
 						const cacheNotFound = !cache?.state?.data;
@@ -573,7 +605,12 @@ const procedures: Record<PropertyKey,
 						};
 					})
 				);
-				return () => createQueries({ queries: queryKeys });
+
+				return (newInput?: (...args: any[]) => any) => {
+					let newQueries = queries;
+					if (newInput) newQueries = newInput(proxy, queries);
+					return createQueries({ queries: newQueries });
+				};
 			};
 		},
 		[ProcedureNames.utils]: ({ path, utilsProxy }) => {
@@ -674,6 +711,7 @@ export function svelteQueryWrapper<TRouter extends AnyRouter>({
 			}
 			return this.nest(() => { });
 		},
-	}
-	);
+	});
 }
+
+
