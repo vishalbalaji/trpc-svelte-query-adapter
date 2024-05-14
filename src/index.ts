@@ -205,8 +205,6 @@ type CreateQueryProcedure<TInput, TOutput, TError> = {
 		=> CreateQueryResult<TData, TError>,
 	[ProcedureNames.serverQuery]: <TData = TOutput>(input: TInput, opts?: CreateTRPCServerQueryOptions<TOutput, TError, TData> & TRPCQueryOpts)
 		=> Promise<(...args: [TInput | ((old: TInput) => TInput)] | []) => CreateQueryResult<TData, TError>>,
-	// [ProcedureNames.serverQuery]: <TData = TOutput>(input: TInput, opts?: CreateTRPCServerQueryOptions<TOutput, TError, TData> & TRPCQueryOpts)
-	// 	=> Promise<(input: TInput | never) => CreateQueryResult<TData, TError>>,
 } & {}
 
 type CreateTRPCInfiniteQueryOptions<TOutput, TError, TData> = Omit<CreateInfiniteQueryOptions<TOutput, TError, TData>, 'queryKey' | 'queryFn'>;
