@@ -204,7 +204,9 @@ type CreateQueryProcedure<TInput, TOutput, TError> = {
 	[ProcedureNames.query]: <TData = TOutput>(input: TInput, opts?: CreateTRPCQueryOptions<TOutput, TError, TData> & TRPCQueryOpts)
 		=> CreateQueryResult<TData, TError>,
 	[ProcedureNames.serverQuery]: <TData = TOutput>(input: TInput, opts?: CreateTRPCServerQueryOptions<TOutput, TError, TData> & TRPCQueryOpts)
-		=> Promise<(input?: TInput | ((old: TInput) => TInput)) => CreateQueryResult<TData, TError>>,
+		=> Promise<(...args: [TInput | ((old: TInput) => TInput)] | []) => CreateQueryResult<TData, TError>>,
+	// [ProcedureNames.serverQuery]: <TData = TOutput>(input: TInput, opts?: CreateTRPCServerQueryOptions<TOutput, TError, TData> & TRPCQueryOpts)
+	// 	=> Promise<(input: TInput | never) => CreateQueryResult<TData, TError>>,
 } & {}
 
 type CreateTRPCInfiniteQueryOptions<TOutput, TError, TData> = Omit<CreateInfiniteQueryOptions<TOutput, TError, TData>, 'queryKey' | 'queryFn'>;
@@ -225,7 +227,7 @@ type CreateInfiniteQueryProcedure<TInput, TOutput, TError> = (TInput extends { c
 		[ProcedureNames.infiniteQuery]: <TData = TOutput>(input: Omit<TInput, 'cursor'>, opts?: CreateTRPCInfiniteQueryOptions<TOutput, TError, TData> & InfiniteQueryOpts<TInput> & TRPCQueryOpts)
 			=> CreateInfiniteQueryResult<InfiniteData<TData>, TError>,
 		[ProcedureNames.serverInfiniteQuery]: <TData = TOutput>(input: Omit<TInput, 'cursor'>, opts?: CreateTRPCServerInfiniteQueryOptions<TOutput, TError, TData> & InfiniteQueryOpts<TInput> & TRPCQueryOpts)
-			=> Promise<(input?: TInput | ((old: TInput) => TInput)) => CreateInfiniteQueryResult<InfiniteData<TData>, TError>>,
+			=> Promise<(...args: [TInput | ((old: TInput) => TInput)] | []) => CreateInfiniteQueryResult<InfiniteData<TData>, TError>>,
 	}
 	: {}) & {}
 
@@ -458,10 +460,11 @@ const procedures: Record<PropertyKey,
 					await queryClient.prefetchQuery(query);
 				}
 
-				return (newInput?: any) => {
+				return (...args: any[]) => {
 					let newQuery = query;
 
-					if (newInput) {
+					if (args.length > 0) {
+						const newInput = args[0];
 						let i = newInput;
 						if (typeof newInput === 'function') i = newInput(input);
 						newQuery = {
@@ -517,10 +520,11 @@ const procedures: Record<PropertyKey,
 					await queryClient.prefetchInfiniteQuery(query as any);
 				}
 
-				return (newInput?: any) => {
+				return (...args: any[]) => {
 					let newQuery = query;
 
-					if (newInput) {
+					if (args.length > 0) {
+						const newInput = args[0];
 						let i = newInput;
 						if (typeof newInput === 'function') i = newInput(input);
 						newQuery = {
@@ -713,5 +717,3 @@ export function svelteQueryWrapper<TRouter extends AnyRouter>({
 		},
 	});
 }
-
-
