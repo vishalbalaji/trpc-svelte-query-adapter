@@ -244,7 +244,7 @@ Then, in the component:
 {:else if $foo.data}
   {$foo.data}
 {/if}
-<br />
+<br /><br />
 
 {#each $queries as query}
   {#if query.isPending}
