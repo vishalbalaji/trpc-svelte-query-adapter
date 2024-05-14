@@ -45,6 +45,7 @@ type HasMutate = { mutate: (...args: any[]) => any }
 type HasSubscribe = { subscribe: (...args: any[]) => any }
 type OnlyQueries<TClient> = Without<TClient, HasMutate | HasSubscribe>
 
+
 // createUtils
 const UtilsProcedureNames = {
 	client: 'client',
@@ -157,6 +158,7 @@ type CreateQueries<TClient, TError> = <TOpts extends CreateQueryOptionsForCreate
 	queriesCallback: (t: CreateQueriesRecord<OnlyQueries<TClient>, TError>) => readonly [...TOpts]
 ) => CreateQueriesResult<TOpts>
 
+
 // createServerQueries
 type CreateQueryOptionsForCreateServerQueries<TOutput, TError, TData> = CreateQueryOptionsForCreateQueries<TOutput, TError, TData> & {
 	ssr?: boolean
@@ -173,6 +175,7 @@ type CreateServerQueriesRecord<TClient, TError> = { [K in keyof TClient]:
 type CreateServerQueries<TClient, TError> = <TOpts extends CreateQueryOptionsForCreateQueries<any, any, any>[]>(
 	queriesCallback: (t: CreateServerQueriesRecord<OnlyQueries<TClient>, TError>) => readonly [...TOpts]
 ) => Promise<(queriesCallback?: (t: CreateQueriesRecord<OnlyQueries<TClient>, TError>, old: readonly [...TOpts]) => readonly [...TOpts]) => CreateQueriesResult<TOpts>>
+
 
 // Procedures
 const ProcedureNames = {
@@ -260,6 +263,8 @@ type AddQueryPropTypes<TClient, TError> = TClient extends Record<any, any> ? {
 	: TClient[K] extends HasSubscribe ? CreateSubscriptionProcedure<Parameters<TClient[K]['subscribe']>[0], GetSubscriptionOutput<Parameters<TClient[K]['subscribe']>[1]>, TError>
 	: GetQueryKey & AddQueryPropTypes<TClient[K], TError>
 } : TClient;
+
+
 // Implementation
 function createQueriesProxy(client: any) {
 	return new DeepProxy({}, {
@@ -592,7 +597,7 @@ const procedures: Record<PropertyKey,
 			return async (input: (...args: any[]) => any) => {
 				const queries = await Promise.all(
 					input(proxy).map(async (query: any) => {
-						const cache = queryClient.getQueryCache().find(query.queryKey);
+						const cache = queryClient.getQueryCache().find({ queryKey: query.queryKey });
 						const cacheNotFound = !cache?.state?.data;
 
 						if (query.ssr !== false && cacheNotFound) {
@@ -624,6 +629,7 @@ const procedures: Record<PropertyKey,
 			return utilsProxy;
 		},
 	};
+
 
 // getQueryKey
 type QueryType = 'query' | 'infinite' | 'any';
@@ -667,7 +673,6 @@ type GetQueryKey<TInput = undefined> = [TInput] extends [undefined | void]
 		 */
 		[ProcedureNames.queryKey]: (input: TInput, type?: QueryType) => QueryKey
 	} & {}
-
 
 
 export function svelteQueryWrapper<TRouter extends AnyRouter>({
