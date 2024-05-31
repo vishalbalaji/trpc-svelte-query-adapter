@@ -303,16 +303,16 @@ type CreateQueryProcedure<TInput, TOutput, TError> = {
 	>;
 } & {};
 
-type CreateTRPCInfiniteQueryOptions<TOutput, TError, TData> = Omit<
-	CreateInfiniteQueryOptions<TOutput, TError, TData>,
-	"queryKey" | "queryFn"
+type CreateTRPCInfiniteQueryOptions<TInput, TOutput, TError, TData> = Omit<
+	CreateInfiniteQueryOptions<TOutput, TError, TData, TData, any, ExtractCursorType<TInput>>,
+	"queryKey" | "queryFn" | "initialPageParam"
 >;
-type CreateTRPCServerInfiniteQueryOptions<TOutput, TError, TData> =
-	CreateTRPCInfiniteQueryOptions<TOutput, TError, TData> & {
+type CreateTRPCServerInfiniteQueryOptions<TInput, TOutput, TError, TData> =
+	CreateTRPCInfiniteQueryOptions<TInput, TOutput, TError, TData> & {
 		ssr?: boolean;
 	};
 
-export type ExtractCursorType<TInput> = TInput extends { cursor: any }
+export type ExtractCursorType<TInput> = TInput extends { cursor?: any }
 	? TInput["cursor"]
 	: unknown;
 
@@ -326,19 +326,19 @@ type CreateInfiniteQueryProcedure<TInput, TOutput, TError> = (TInput extends {
 	? {
 		[ProcedureNames.infiniteQuery]: <TData = TOutput>(
 			input: Omit<TInput, "cursor">,
-			opts?: CreateTRPCInfiniteQueryOptions<TOutput, TError, TData> &
+			opts: CreateTRPCInfiniteQueryOptions<TInput, TOutput, TError, TData> &
 				InfiniteQueryOpts<TInput> &
 				TRPCQueryOpts,
-		) => CreateInfiniteQueryResult<InfiniteData<TData>, TError>;
+		) => CreateInfiniteQueryResult<InfiniteData<TData, NonNullable<ExtractCursorType<TInput>> | null>, TError>;
 		[ProcedureNames.serverInfiniteQuery]: <TData = TOutput>(
 			input: Omit<TInput, "cursor">,
-			opts?: CreateTRPCServerInfiniteQueryOptions<TOutput, TError, TData> &
+			opts: CreateTRPCServerInfiniteQueryOptions<TInput, TOutput, TError, TData> &
 				InfiniteQueryOpts<TInput> &
 				TRPCQueryOpts,
 		) => Promise<
 			(
 				...args: [TInput | ((old: TInput) => TInput)] | []
-			) => CreateInfiniteQueryResult<InfiniteData<TData>, TError>
+			) => CreateInfiniteQueryResult<InfiniteData<TData, NonNullable<ExtractCursorType<TInput>> | null>, TError>
 		>;
 	}
 	: {}) & {};
@@ -664,11 +664,13 @@ const procedures: Record<
 			const shouldAbortOnUnmount = opts?.trpc?.abortOnUnmount ?? abortOnUnmount;
 			return createInfiniteQuery({
 				...opts,
+				initialPageParam: opts.initialCursor ?? null,
 				queryKey: getArrayQueryKey(path, input, "infinite"),
 				queryFn: ({ pageParam, signal }) =>
 					target.query({
 						...input,
 						cursor: pageParam ?? opts?.initialCursor,
+					}, {
 						...(shouldAbortOnUnmount && { signal }),
 					}),
 			});
@@ -687,11 +689,14 @@ const procedures: Record<
 			const query: Omit<FetchInfiniteQueryOptions, "initialPageParam"> = {
 				queryKey: getArrayQueryKey(path, input, "infinite"),
 				queryFn: ({ pageParam, signal }) =>
-					targetFn({
-						...input,
-						cursor: pageParam ?? opts?.initialCursor,
-						...(shouldAbortOnUnmount && { signal }),
-					}),
+					targetFn(
+						{
+							...input,
+							cursor: pageParam ?? opts?.initialCursor,
+						},
+						{
+							...(shouldAbortOnUnmount && { signal }),
+						}),
 			};
 
 			const cache = queryClient
@@ -711,10 +716,12 @@ const procedures: Record<
 					if (typeof newInput === "function") i = newInput(input);
 					newQuery = {
 						queryKey: getArrayQueryKey(path, i, "infinite"),
-						queryFn: ({ pageParam, signal }) =>
-							targetFn({
+						queryFn: ({ pageParam, signal }) => targetFn(
+							{
 								...i,
 								cursor: pageParam ?? opts?.initialCursor,
+							},
+							{
 								...(shouldAbortOnUnmount && { signal }),
 							}),
 					};
@@ -724,6 +731,7 @@ const procedures: Record<
 
 				return createInfiniteQuery({
 					...opts,
+					initialPageParam: opts.initialCursor ?? null,
 					...newQuery,
 					...(cacheNotFound
 						? {
@@ -930,3 +938,4 @@ export function svelteQueryWrapper<TRouter extends AnyRouter>({
 		},
 	);
 }
+
