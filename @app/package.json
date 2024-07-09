@@ -2,6 +2,7 @@
 	"name": "app",
 	"version": "0.0.1",
 	"private": true,
+	"description": "SvelteKit app for testing trpc-svelte-query-adapter",
 	"scripts": {
 		"dev": "vite dev",
 		"build": "vite build",
