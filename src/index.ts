@@ -1,7 +1,7 @@
-import DeepProxy from "proxy-deep";
+import DeepProxy from 'proxy-deep';
 
-import type { TRPCClientErrorLike, CreateTRPCProxyClient } from "@trpc/client";
-import type { AnyRouter } from "@trpc/server";
+import type { TRPCClientErrorLike, CreateTRPCProxyClient } from '@trpc/client';
+import type { AnyRouter } from '@trpc/server';
 
 import {
 	useQueryClient,
@@ -28,9 +28,9 @@ import {
 	type CreateQueryResult,
 	type CreateInfiniteQueryResult,
 	type CreateMutationResult,
-} from "@tanstack/svelte-query";
+} from '@tanstack/svelte-query';
 
-import { onDestroy } from "svelte";
+import { onDestroy } from 'svelte';
 
 // CREDIT: https://stackoverflow.com/a/63448246
 type WithNevers<T, V> = {
@@ -52,20 +52,20 @@ type OnlyQueries<TClient> = Without<TClient, HasMutate | HasSubscribe>;
 
 // createUtils
 const UtilsProcedureNames = {
-	client: "client",
-	fetch: "fetch",
-	prefetch: "prefetch",
-	fetchInfinite: "fetchInfinite",
-	prefetchInfinite: "prefetchInfinite",
-	ensureData: "ensureData",
-	invalidate: "invalidate",
-	refetch: "refetch",
-	reset: "reset",
-	cancel: "cancel",
-	setData: "setData",
-	getData: "getData",
-	setInfiniteData: "setInfiniteData",
-	getInfiniteData: "getInfiniteData",
+	client: 'client',
+	fetch: 'fetch',
+	prefetch: 'prefetch',
+	fetchInfinite: 'fetchInfinite',
+	prefetchInfinite: 'prefetchInfinite',
+	ensureData: 'ensureData',
+	invalidate: 'invalidate',
+	refetch: 'refetch',
+	reset: 'reset',
+	cancel: 'cancel',
+	setData: 'setData',
+	getData: 'getData',
+	setInfiniteData: 'setInfiniteData',
+	getInfiniteData: 'getInfiniteData',
 } as const;
 
 type UtilsProcedures<
@@ -186,8 +186,8 @@ type UtilsProcedures<
 type AddUtilsPropTypes<TClient, TError> = {
 	[K in keyof TClient]: TClient[K] extends HasQuery
 	? UtilsProcedures<
-		Parameters<TClient[K]["query"]>[0],
-		Awaited<ReturnType<TClient[K]["query"]>>,
+		Parameters<TClient[K]['query']>[0],
+		Awaited<ReturnType<TClient[K]['query']>>,
 		TError
 	>
 	: AddUtilsPropTypes<TClient[K], TError> &
@@ -208,13 +208,13 @@ type CreateQueriesResult<TOpts extends any[]> = ReturnType<
 >;
 type CreateQueryOptionsForCreateQueries<TOutput, TError, TData> = Omit<
 	CreateQueryOptions<TOutput, TError, TData>,
-	"context" | "queryKey" | "queryFn"
+	'context' | 'queryKey' | 'queryFn'
 >;
 
 type CreateQueriesRecord<TClient, TError> = {
 	[K in keyof TClient]: TClient[K] extends HasQuery
-	? <TOutput = Awaited<ReturnType<TClient[K]["query"]>>, TData = TOutput>(
-		input: Parameters<TClient[K]["query"]>[0],
+	? <TOutput = Awaited<ReturnType<TClient[K]['query']>>, TData = TOutput>(
+		input: Parameters<TClient[K]['query']>[0],
 		opts?: CreateQueryOptionsForCreateQueries<TOutput, TError, TData>,
 	) => CreateQueryOptionsForCreateQueries<TOutput, TError, TData>
 	: CreateQueriesRecord<TClient[K], TError>;
@@ -236,8 +236,8 @@ type CreateQueryOptionsForCreateServerQueries<TOutput, TError, TData> =
 
 type CreateServerQueriesRecord<TClient, TError> = {
 	[K in keyof TClient]: TClient[K] extends HasQuery
-	? <TOutput = Awaited<ReturnType<TClient[K]["query"]>>, TData = TOutput>(
-		input: Parameters<TClient[K]["query"]>[0],
+	? <TOutput = Awaited<ReturnType<TClient[K]['query']>>, TData = TOutput>(
+		input: Parameters<TClient[K]['query']>[0],
 		opts?: CreateQueryOptionsForCreateServerQueries<TOutput, TError, TData>,
 	) => CreateQueryOptionsForCreateServerQueries<TOutput, TError, TData>
 	: CreateQueriesRecord<TClient[K], TError>;
@@ -260,22 +260,22 @@ type CreateServerQueries<TClient, TError> = <
 
 // Procedures
 const ProcedureNames = {
-	query: "createQuery",
-	serverQuery: "createServerQuery",
-	infiniteQuery: "createInfiniteQuery",
-	serverInfiniteQuery: "createServerInfiniteQuery",
-	mutate: "createMutation",
-	subscribe: "createSubscription",
-	queryKey: "getQueryKey",
-	context: "createContext",
-	utils: "createUtils",
-	queries: "createQueries",
-	serverQueries: "createServerQueries",
+	query: 'createQuery',
+	serverQuery: 'createServerQuery',
+	infiniteQuery: 'createInfiniteQuery',
+	serverInfiniteQuery: 'createServerInfiniteQuery',
+	mutate: 'createMutation',
+	subscribe: 'createSubscription',
+	queryKey: 'getQueryKey',
+	context: 'createContext',
+	utils: 'createUtils',
+	queries: 'createQueries',
+	serverQueries: 'createServerQueries',
 } as const;
 
 type CreateTRPCQueryOptions<TOutput, TError, TData> = Omit<
 	CreateQueryOptions<TOutput, TError, TData>,
-	"queryKey" | "queryFn"
+	'queryKey' | 'queryFn'
 >;
 type CreateTRPCServerQueryOptions<TOutput, TError, TData> =
 	CreateTRPCQueryOptions<TOutput, TError, TData> & {
@@ -305,7 +305,7 @@ type CreateQueryProcedure<TInput, TOutput, TError> = {
 
 type CreateTRPCInfiniteQueryOptions<TInput, TOutput, TError, TData> = Omit<
 	CreateInfiniteQueryOptions<TOutput, TError, TData, TData, any, ExtractCursorType<TInput>>,
-	"queryKey" | "queryFn" | "initialPageParam"
+	'queryKey' | 'queryFn' | 'initialPageParam'
 >;
 type CreateTRPCServerInfiniteQueryOptions<TInput, TOutput, TError, TData> =
 	CreateTRPCInfiniteQueryOptions<TInput, TOutput, TError, TData> & {
@@ -313,7 +313,7 @@ type CreateTRPCServerInfiniteQueryOptions<TInput, TOutput, TError, TData> =
 	};
 
 export type ExtractCursorType<TInput> = TInput extends { cursor?: any }
-	? TInput["cursor"]
+	? TInput['cursor']
 	: unknown;
 
 type InfiniteQueryOpts<TInput> = {
@@ -325,13 +325,13 @@ type CreateInfiniteQueryProcedure<TInput, TOutput, TError> = (TInput extends {
 }
 	? {
 		[ProcedureNames.infiniteQuery]: <TData = TOutput>(
-			input: Omit<TInput, "cursor">,
+			input: Omit<TInput, 'cursor'>,
 			opts: CreateTRPCInfiniteQueryOptions<TInput, TOutput, TError, TData> &
 				InfiniteQueryOpts<TInput> &
 				TRPCQueryOpts,
 		) => CreateInfiniteQueryResult<InfiniteData<TData, NonNullable<ExtractCursorType<TInput>> | null>, TError>;
 		[ProcedureNames.serverInfiniteQuery]: <TData = TOutput>(
-			input: Omit<TInput, "cursor">,
+			input: Omit<TInput, 'cursor'>,
 			opts: CreateTRPCServerInfiniteQueryOptions<TInput, TOutput, TError, TData> &
 				InfiniteQueryOpts<TInput> &
 				TRPCQueryOpts,
@@ -362,7 +362,7 @@ type CreateSubscriptionOptions<TOutput, TError> = {
 
 type GetSubscriptionOutput<TOpts> = TOpts extends unknown & Partial<infer A>
 	? A extends { onData: any }
-	? Parameters<A["onData"]>[0]
+	? Parameters<A['onData']>[0]
 	: never
 	: never;
 
@@ -378,20 +378,20 @@ type AddQueryPropTypes<TClient, TError> =
 	? {
 		[K in keyof TClient]: TClient[K] extends HasQuery
 		? QueryProcedures<
-			Parameters<TClient[K]["query"]>[0],
-			Awaited<ReturnType<TClient[K]["query"]>>,
+			Parameters<TClient[K]['query']>[0],
+			Awaited<ReturnType<TClient[K]['query']>>,
 			TError
 		> & {}
 		: TClient[K] extends HasMutate
 		? CreateMutationProcedure<
-			Parameters<TClient[K]["mutate"]>[0],
-			Awaited<ReturnType<TClient[K]["mutate"]>>,
+			Parameters<TClient[K]['mutate']>[0],
+			Awaited<ReturnType<TClient[K]['mutate']>>,
 			TError
 		>
 		: TClient[K] extends HasSubscribe
 		? CreateSubscriptionProcedure<
-			Parameters<TClient[K]["subscribe"]>[0],
-			GetSubscriptionOutput<Parameters<TClient[K]["subscribe"]>[1]>,
+			Parameters<TClient[K]['subscribe']>[0],
+			GetSubscriptionOutput<Parameters<TClient[K]['subscribe']>[1]>,
 			TError
 		>
 		: GetQueryKey & AddQueryPropTypes<TClient[K], TError>;
@@ -409,17 +409,17 @@ function createQueriesProxy(client: any) {
 			apply(_target, _thisArg, argList) {
 				const target = [...this.path].reduce(
 					(client, value) => client[value],
-					client,
+					client
 				);
 				const [input, opts] = argList;
 
 				return {
 					...opts,
-					queryKey: getArrayQueryKey(this.path, input, "query"),
+					queryKey: getArrayQueryKey(this.path, input, 'query'),
 					queryFn: () => target.query(input),
 				};
 			},
-		},
+		}
 	);
 }
 
@@ -431,7 +431,7 @@ const utilsProcedures: Record<
 		return (input: any, opts?: any) => {
 			return queryClient.fetchQuery({
 				...opts,
-				queryKey: getArrayQueryKey(path, input, "query"),
+				queryKey: getArrayQueryKey(path, input, 'query'),
 				queryFn: () => target.query(input),
 			});
 		};
@@ -440,7 +440,7 @@ const utilsProcedures: Record<
 		return (input: any, opts?: any) => {
 			return queryClient.prefetchQuery({
 				...opts,
-				queryKey: getArrayQueryKey(path, input, "query"),
+				queryKey: getArrayQueryKey(path, input, 'query'),
 				queryFn: () => target.query(input),
 			});
 		};
@@ -449,7 +449,7 @@ const utilsProcedures: Record<
 		return (input: any, opts?: any) => {
 			return queryClient.fetchInfiniteQuery({
 				...opts,
-				queryKey: getArrayQueryKey(path, input, "infinite"),
+				queryKey: getArrayQueryKey(path, input, 'infinite'),
 				queryFn: ({ pageParam }: { pageParam: number }) =>
 					target.query({ ...input, cursor: pageParam }),
 			});
@@ -459,7 +459,7 @@ const utilsProcedures: Record<
 		return (input: any, opts?: any) => {
 			return queryClient.prefetchInfiniteQuery({
 				...opts,
-				queryKey: getArrayQueryKey(path, input, "infinite"),
+				queryKey: getArrayQueryKey(path, input, 'infinite'),
 				queryFn: ({ pageParam }: { pageParam: number }) =>
 					target.query({ ...input, cursor: pageParam }),
 			});
@@ -469,7 +469,7 @@ const utilsProcedures: Record<
 		return (input: any, opts?: any) => {
 			return queryClient.ensureQueryData({
 				...opts,
-				queryKey: getArrayQueryKey(path, input, "query"),
+				queryKey: getArrayQueryKey(path, input, 'query'),
 				queryFn: () => target.query(input),
 			});
 		};
@@ -479,9 +479,9 @@ const utilsProcedures: Record<
 			return queryClient.invalidateQueries(
 				{
 					...filters,
-					queryKey: getArrayQueryKey(path, input, "any"),
+					queryKey: getArrayQueryKey(path, input, 'any'),
 				},
-				options,
+				options
 			);
 		};
 	},
@@ -490,9 +490,9 @@ const utilsProcedures: Record<
 			return queryClient.refetchQueries(
 				{
 					...filters,
-					queryKey: getArrayQueryKey(path, input, "any"),
+					queryKey: getArrayQueryKey(path, input, 'any'),
 				},
-				options,
+				options
 			);
 		};
 	},
@@ -501,9 +501,9 @@ const utilsProcedures: Record<
 			return queryClient.cancelQueries(
 				{
 					...filters,
-					queryKey: getArrayQueryKey(path, input, "any"),
+					queryKey: getArrayQueryKey(path, input, 'any'),
 				},
-				options,
+				options
 			);
 		};
 	},
@@ -512,39 +512,39 @@ const utilsProcedures: Record<
 			return queryClient.resetQueries(
 				{
 					...filters,
-					queryKey: getArrayQueryKey(path, input, "any"),
+					queryKey: getArrayQueryKey(path, input, 'any'),
 				},
-				options,
+				options
 			);
 		};
 	},
 	[UtilsProcedureNames.setData]: ({ queryClient, path }) => {
 		return (input: any, updater: any, options?: any) => {
 			return queryClient.setQueryData(
-				getArrayQueryKey(path, input, "query"),
+				getArrayQueryKey(path, input, 'query'),
 				updater,
-				options,
+				options
 			);
 		};
 	},
 	[UtilsProcedureNames.setInfiniteData]: ({ queryClient, path }) => {
 		return (input: any, updater: any, options?: any) => {
 			return queryClient.setQueryData(
-				getArrayQueryKey(path, input, "infinite"),
+				getArrayQueryKey(path, input, 'infinite'),
 				updater,
-				options,
+				options
 			);
 		};
 	},
 	[UtilsProcedureNames.getData]: ({ queryClient, path }) => {
 		return (input?: any) => {
-			return queryClient.getQueryData(getArrayQueryKey(path, input, "query"));
+			return queryClient.getQueryData(getArrayQueryKey(path, input, 'query'));
 		};
 	},
 	[UtilsProcedureNames.getInfiniteData]: ({ queryClient, path }) => {
 		return (input?: any) => {
 			return queryClient.getQueryData(
-				getArrayQueryKey(path, input, "infinite"),
+				getArrayQueryKey(path, input, 'infinite')
 			);
 		};
 	},
@@ -560,14 +560,14 @@ function createUtilsProxy(client: any, queryClient: QueryClient) {
 				if (Object.hasOwn(utilsProcedures, key)) {
 					const target = [...this.path].reduce(
 						(client, value) => client[value],
-						client as Record<PropertyKey, any>,
+						client as Record<PropertyKey, any>
 					);
 					return utilsProcedures[key]({ path: this.path, target, queryClient });
 				}
 
 				return this.nest(() => { });
 			},
-		},
+		}
 	);
 }
 
@@ -592,7 +592,7 @@ const procedures: Record<
 			const shouldAbortOnUnmount = opts?.trpc?.abortOnUnmount ?? abortOnUnmount;
 			return createQuery({
 				...opts,
-				queryKey: getArrayQueryKey(path, input, "query"),
+				queryKey: getArrayQueryKey(path, input, 'query'),
 				queryFn: ({ signal }) =>
 					targetFn(input, {
 						...(shouldAbortOnUnmount && { signal }),
@@ -611,7 +611,7 @@ const procedures: Record<
 		return async (input: any, opts?: any) => {
 			const shouldAbortOnUnmount = opts?.trpc?.abortOnUnmount ?? abortOnUnmount;
 			const query: FetchQueryOptions = {
-				queryKey: getArrayQueryKey(path, input, "query"),
+				queryKey: getArrayQueryKey(path, input, 'query'),
 				queryFn: ({ signal }) =>
 					targetFn(input, {
 						...(shouldAbortOnUnmount && { signal }),
@@ -634,9 +634,9 @@ const procedures: Record<
 				if (args.length > 0) {
 					const newInput = args[0];
 					let i = newInput;
-					if (typeof newInput === "function") i = newInput(input);
+					if (typeof newInput === 'function') i = newInput(input);
 					newQuery = {
-						queryKey: getArrayQueryKey(path, i, "query"),
+						queryKey: getArrayQueryKey(path, i, 'query'),
 						queryFn: ({ signal }) =>
 							targetFn(i, {
 								...(shouldAbortOnUnmount && { signal }),
@@ -665,7 +665,7 @@ const procedures: Record<
 			return createInfiniteQuery({
 				...opts,
 				initialPageParam: opts.initialCursor ?? null,
-				queryKey: getArrayQueryKey(path, input, "infinite"),
+				queryKey: getArrayQueryKey(path, input, 'infinite'),
 				queryFn: ({ pageParam, signal }) =>
 					target.query({
 						...input,
@@ -686,8 +686,8 @@ const procedures: Record<
 
 		return async (input: any, opts?: any) => {
 			const shouldAbortOnUnmount = opts?.trpc?.abortOnUnmount ?? abortOnUnmount;
-			const query: Omit<FetchInfiniteQueryOptions, "initialPageParam"> = {
-				queryKey: getArrayQueryKey(path, input, "infinite"),
+			const query: Omit<FetchInfiniteQueryOptions, 'initialPageParam'> = {
+				queryKey: getArrayQueryKey(path, input, 'infinite'),
 				queryFn: ({ pageParam, signal }) =>
 					targetFn(
 						{
@@ -713,9 +713,9 @@ const procedures: Record<
 				if (args.length > 0) {
 					const newInput = args[0];
 					let i = newInput;
-					if (typeof newInput === "function") i = newInput(input);
+					if (typeof newInput === 'function') i = newInput(input);
 					newQuery = {
-						queryKey: getArrayQueryKey(path, i, "infinite"),
+						queryKey: getArrayQueryKey(path, i, 'infinite'),
 						queryFn: ({ pageParam, signal }) => targetFn(
 							{
 								...i,
@@ -814,7 +814,7 @@ const procedures: Record<
 							}
 							: {}),
 					};
-				}),
+				})
 			);
 
 			return (newInput?: (...args: any[]) => any) => {
@@ -835,27 +835,27 @@ const procedures: Record<
 };
 
 // getQueryKey
-type QueryType = "query" | "infinite" | "any";
+type QueryType = 'query' | 'infinite' | 'any';
 
 type QueryKey = [
 	string[],
-	{ input?: unknown; type?: Exclude<QueryType, "any"> }?,
+	{ input?: unknown; type?: Exclude<QueryType, 'any'> }?,
 ];
 
 function getArrayQueryKey(
 	queryKey: string | [string] | [string, ...unknown[]] | unknown[],
 	input: unknown,
-	type: QueryType,
+	type: QueryType
 ): QueryKey {
 	const arrayPath = (
-		typeof queryKey === "string"
-			? queryKey === ""
+		typeof queryKey === 'string'
+			? queryKey === ''
 				? []
-				: queryKey.split(".")
+				: queryKey.split('.')
 			: queryKey
 	) as [string];
 
-	if (!input && (!type || type === "any"))
+	if (!input && (!type || type === 'any'))
 		// for `utils.invalidate()` to match all queries (including vanilla react-query)
 		// we don't want nested array if path is empty, i.e. `[]` instead of `[[]]`
 		return arrayPath.length ? [arrayPath] : ([] as unknown as QueryKey);
@@ -863,8 +863,8 @@ function getArrayQueryKey(
 	return [
 		arrayPath,
 		{
-			...(typeof input !== "undefined" && { input: input }),
-			...(type && type !== "any" && { type: type }),
+			...(typeof input !== 'undefined' && { input: input }),
+			...(type && type !== 'any' && { type: type }),
 		},
 	];
 }
@@ -922,7 +922,7 @@ export function svelteQueryWrapper<TRouter extends AnyRouter>({
 				if (Object.hasOwn(procedures, key)) {
 					const target = [...this.path].reduce(
 						(client, value) => client[value],
-						client as Record<PropertyKey, any>,
+						client as Record<PropertyKey, any>
 					);
 					return procedures[key]({
 						path: this.path,
@@ -935,7 +935,7 @@ export function svelteQueryWrapper<TRouter extends AnyRouter>({
 				}
 				return this.nest(() => { });
 			},
-		},
+		}
 	);
 }
 
