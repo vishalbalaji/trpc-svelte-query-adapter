@@ -293,6 +293,7 @@ type CreateQueryProcedure<TInput, TOutput, TError> = {
 		input: TInput,
 		opts?: CreateTRPCQueryOptions<TOutput, TError, TData> & TRPCQueryOpts,
 	) => CreateQueryResult<TData, TError>;
+} & {
 	[ProcedureNames.serverQuery]: <TData = TOutput>(
 		input: TInput,
 		opts?: CreateTRPCServerQueryOptions<TOutput, TError, TData> & TRPCQueryOpts,

@@ -1,56 +1,8 @@
 {
-	"name": "trpc-svelte-query-adapter",
-	"version": "2.3.4",
-	"description": "A simple adapter to use `@tanstack/svelte-query` with trpc, similar to `@trpc/react-query`.",
-	"keywords": [
-		"trpc",
-		"svelte",
-		"sveltekit",
-		"kit",
-		"adapter",
-		"handle",
-		"typescript",
-		"rpc",
-		"svelte-query",
-		"react-query",
-		"tanstack-query",
-		"query"
-	],
-	"author": {
-		"name": "Vishal Balaji D",
-		"email": "vishalbalaji@gmail.com",
-		"url": "https://github.com/vishalbalaji"
-	},
-	"repository": "vishalbalaji/trpc-svelte-query-adapter",
-	"bugs": {
-		"url": "https://github.com/vishalbalaji/trpc-svelte-query-adapter/issues"
-	},
-	"license": "MIT",
-	"type": "module",
-	"main": "dist/index.js",
-	"types": "dist/index.d.ts",
-	"scripts": {
-		"build": "tsc",
-		"lint": "eslint src/**/* --ext .js --ext .ts"
-	},
-	"dependencies": {
-		"proxy-deep": "^3.1.1"
-	},
-	"devDependencies": {
-		"@eslint/js": "^9.6.0",
-		"@types/eslint": "^8.56.10",
-		"@types/node": "^20.9.0",
-		"@typescript-eslint/eslint-plugin": "^6.10.0",
-		"@typescript-eslint/parser": "^6.10.0",
-		"eslint": "^9.6.0",
-		"globals": "^15.8.0",
-		"typescript-eslint": "^7.16.0"
-	},
-	"peerDependencies": {
-		"@tanstack/svelte-query": "^5.8.2",
-		"@trpc/client": "^10.43.3",
-		"@trpc/server": "^10.43.3",
-		"svelte": "^4.2.3",
-		"typescript": "^5.2.2"
-	}
+  "name": "root",
+  "private": true,
+  "scripts": {
+    "lib": "pnpm --filter=trpc-svelte-query-adapter",
+    "app": "pnpm --filter=app"
+  }
 }
