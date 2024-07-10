@@ -6,7 +6,7 @@
 
 > **NOTE:** The README on [npmjs](https://npmjs.com/trpc-svelte-query-adapter) might not be fully up to date. Please refer to the [README on the Github Repo](https://github.com/vishalbalaji/trpc-svelte-query-adapter/#readme) for the latest setup instructions.
 
-This package provides an adapter to call `tRPC` procedures wrapped with <code>[@tanstack/svelte-query](https://tanstack.com/query/v4/docs/svelte/overview)</code>, similar to <code>[@trpc/react-query](https://trpc.io/docs/react-query)</code>. This is made possible using <code>[proxy-deep](https://www.npmjs.com/package/proxy-deep)</code>.
+This package provides an adapter to call `tRPC` procedures wrapped with <code>[@tanstack/svelte-query](https://tanstack.com/query/latest/docs/svelte/overview)</code>, similar to <code>[@trpc/react-query](https://trpc.io/docs/react-query)</code>. This is made possible using <code>[proxy-deep](https://www.npmjs.com/package/proxy-deep)</code>.
 
 ## Installation
 
@@ -67,7 +67,7 @@ export type Router = typeof router;
 
 ### Client-Only Svelte
 
-1. Setup `@tanstack/svelte-query` as per [svelte-query docs](https://tanstack.com/query/v4/docs/svelte/overview).
+1. Setup `@tanstack/svelte-query` as per [svelte-query docs](https://tanstack.com/query/latest/docs/svelte/overview).
 2. Setup <code>[@trpc/client](https://trpc.io/docs/client)</code> and export the `tRPC` client.
 3. Wrap the exported `tRPC` client with `svelteQueryWrapper` from `trpc-svelte-query-adapter`, as demonstrated in the example below:
 
@@ -110,7 +110,7 @@ export const trpc = svelteQueryWrapper<Router>({ client });
 
 ### SvelteKit and SSR
 
-For SvelteKit, the process is pretty much the same as for client-only svelte. However, if you intend to call queries from the server in a `load` function, you would need to setup `@tanstack/svelte-query` according to the [the ssr example in the svelte-query docs](https://tanstack.com/query/v4/docs/svelte/ssr#using-prefetchquery).
+For SvelteKit, the process is pretty much the same as for client-only svelte. However, if you intend to call queries from the server in a `load` function, you would need to setup `@tanstack/svelte-query` according to the [the ssr example in the svelte-query docs](https://tanstack.com/query/latest/docs/svelte/ssr#using-prefetchquery).
 
 Upon doing that, you would also need to pass in the `queryClient` to `svelteQueryWrapper` when initializing on the server, which you can get by calling the `event.parent` method in the `load` function. You can see an example of this in the [Server-Side Query Pre-Fetching](#server-side-query-pre-fetching) section. For this purpose, you might also want to export your client wrapped in a function that optionally takes in `queryClient` and passes it onto `svelteQueryWrapper`.
 
