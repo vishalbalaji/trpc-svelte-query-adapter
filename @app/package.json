@@ -37,6 +37,7 @@
 		"@trpc/client": "^10.45.2",
 		"@trpc/server": "^10.45.2",
 		"trpc-svelte-query-adapter": "workspace:^",
-		"trpc-sveltekit": "^3.6.2"
+		"trpc-sveltekit": "^3.6.2",
+		"zod": "^3.23.8"
 	}
 }
