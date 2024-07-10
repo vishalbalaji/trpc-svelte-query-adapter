@@ -7,7 +7,7 @@ export async function load(event) {
 	return {
 		queries: await api.createServerQueries((t) => [t.greeting('foo'), t.greeting('bar')], {
 			combine: (results) => ({
-				foo: results.map(({ data }) => data),
+				data: results.map(({ data }) => data),
 				pending: results.some(({ isPending }) => isPending)
 			})
 		})
