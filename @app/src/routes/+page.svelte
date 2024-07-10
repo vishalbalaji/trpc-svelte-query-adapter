@@ -1,17 +1,8 @@
 <script lang="ts">
-	import { page } from '$app/stores';
-	import { trpc } from '$lib/trpc/client';
-
-	const api = trpc($page);
-
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	const query = api.greeting.createQuery();
+	export let data;
+	const queries = data.queries();
 </script>
 
-<!-- {#if $query.isPending} -->
-<!-- 	Loading... -->
-<!-- {:else if $query.isError} -->
-<!-- 	Error: {$query.error.message} -->
-<!-- {:else if $query.data} -->
-<!-- 	{$query.data} -->
-<!-- {/if} -->
+<pre>
+{JSON.stringify($queries, null, 2)}
+</pre>

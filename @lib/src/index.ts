@@ -28,6 +28,7 @@ import {
 	type CreateQueryResult,
 	type CreateInfiniteQueryResult,
 	type CreateMutationResult,
+	QueriesResults,
 } from '@tanstack/svelte-query';
 
 import { onDestroy } from 'svelte';
@@ -51,7 +52,7 @@ type HasSubscribe = { subscribe: (...args: any[]) => any };
 type OnlyQueries<TClient> = Without<TClient, HasMutate | HasSubscribe>;
 
 // createUtils
-const UtilsProcedureNames = {
+const UtilsProcedure = {
 	client: 'client',
 	fetch: 'fetch',
 	prefetch: 'prefetch',
@@ -76,7 +77,7 @@ type UtilsProcedures<
 	/**
 	 * @link https://tanstack.com/query/v4/docs/reference/QueryClient#queryclientfetchquery
 	 */
-	[UtilsProcedureNames.fetch](
+	[UtilsProcedure.fetch](
 		input: TInput,
 		opts?: FetchQueryOptions<TInput, TError, TOutput>,
 	): Promise<TOutput>;
@@ -84,7 +85,7 @@ type UtilsProcedures<
 	/**
 	 * @link https://tanstack.com/query/v4/docs/reference/QueryClient#queryclientfetchinfinitequery
 	 */
-	[UtilsProcedureNames.fetchInfinite](
+	[UtilsProcedure.fetchInfinite](
 		input: TInput,
 		opts?: FetchInfiniteQueryOptions<TInput, TError, TOutput>,
 	): Promise<InfiniteData<TOutput>>;
@@ -92,7 +93,7 @@ type UtilsProcedures<
 	/**
 	 * @link https://tanstack.com/query/v4/docs/reference/QueryClient#queryclientprefetchquery
 	 */
-	[UtilsProcedureNames.prefetch](
+	[UtilsProcedure.prefetch](
 		input: TInput,
 		opts?: FetchQueryOptions<TInput, TError, TOutput>,
 	): Promise<void>;
@@ -100,7 +101,7 @@ type UtilsProcedures<
 	/**
 	 * @link https://tanstack.com/query/v4/docs/reference/QueryClient#queryclientprefetchinfinitequery
 	 */
-	[UtilsProcedureNames.prefetchInfinite](
+	[UtilsProcedure.prefetchInfinite](
 		input: TInput,
 		opts?: FetchInfiniteQueryOptions<TInput, TError, TOutput>,
 	): Promise<void>;
@@ -108,7 +109,7 @@ type UtilsProcedures<
 	/**
 	 * @link https://tanstack.com/query/v4/docs/react/reference/QueryClient#queryclientensurequerydata
 	 */
-	[UtilsProcedureNames.ensureData](
+	[UtilsProcedure.ensureData](
 		input?: TInput,
 		opts?: FetchQueryOptions<TInput, TError, TOutput>,
 	): Promise<TOutput>;
@@ -116,7 +117,7 @@ type UtilsProcedures<
 	/**
 	 * @link https://tanstack.com/query/v4/docs/reference/QueryClient#queryclientinvalidatequeries
 	 */
-	[UtilsProcedureNames.invalidate](
+	[UtilsProcedure.invalidate](
 		input?: TInput,
 		filters?: InvalidateQueryFilters,
 		options?: InvalidateOptions,
@@ -125,7 +126,7 @@ type UtilsProcedures<
 	/**
 	 * @link https://tanstack.com/query/v4/docs/reference/QueryClient#queryclientrefetchqueries
 	 */
-	[UtilsProcedureNames.refetch](
+	[UtilsProcedure.refetch](
 		input?: TInput,
 		filters?: RefetchQueryFilters,
 		options?: RefetchOptions,
@@ -134,7 +135,7 @@ type UtilsProcedures<
 	/**
 	 * @link https://tanstack.com/query/v4/docs/reference/QueryClient#queryclientcancelqueries
 	 */
-	[UtilsProcedureNames.cancel](
+	[UtilsProcedure.cancel](
 		input?: TInput,
 		filters?: QueryFilters,
 		options?: CancelOptions,
@@ -143,7 +144,7 @@ type UtilsProcedures<
 	/**
 	 * @link https://tanstack.com/query/v4/docs/reference/QueryClient#queryclientresetqueries
 	 */
-	[UtilsProcedureNames.reset](
+	[UtilsProcedure.reset](
 		input?: TInput,
 		filters?: QueryFilters,
 		options?: ResetOptions,
@@ -152,7 +153,7 @@ type UtilsProcedures<
 	/**
 	 * @link https://tanstack.com/query/v4/docs/reference/QueryClient#queryclientsetquerydata
 	 */
-	[UtilsProcedureNames.setData](
+	[UtilsProcedure.setData](
 		input: TInput,
 		updater: Updater<TOutput | undefined, TOutput | undefined>,
 		options?: SetDataOptions,
@@ -161,7 +162,7 @@ type UtilsProcedures<
 	/**
 	 * @link https://tanstack.com/query/v4/docs/reference/QueryClient#queryclientsetquerydata
 	 */
-	[UtilsProcedureNames.setInfiniteData](
+	[UtilsProcedure.setInfiniteData](
 		input: TInput,
 		updater: Updater<
 			InfiniteData<TOutput> | undefined,
@@ -173,12 +174,12 @@ type UtilsProcedures<
 	/**
 	 * @link https://tanstack.com/query/v4/docs/reference/QueryClient#queryclientgetquerydata
 	 */
-	[UtilsProcedureNames.getData](input?: TInput): TOutput | undefined;
+	[UtilsProcedure.getData](input?: TInput): TOutput | undefined;
 
 	/**
 	 * @link https://tanstack.com/query/v4/docs/reference/QueryClient#queryclientgetquerydata
 	 */
-	[UtilsProcedureNames.getInfiniteData](
+	[UtilsProcedure.getInfiniteData](
 		input?: TInput,
 	): InfiniteData<TOutput> | undefined;
 };
@@ -191,21 +192,23 @@ type AddUtilsPropTypes<TClient, TError> = {
 		TError
 	>
 	: AddUtilsPropTypes<TClient[K], TError> &
-	Pick<UtilsProcedures, typeof UtilsProcedureNames.invalidate>;
+	Pick<UtilsProcedures, typeof UtilsProcedure.invalidate>;
 };
 
 type CreateUtils<TClient, TError> = AddUtilsPropTypes<
 	OnlyQueries<TClient>,
 	TError
 > &
-	Pick<UtilsProcedures, typeof UtilsProcedureNames.invalidate> & {
-		[UtilsProcedureNames.client]: TClient;
+	Pick<UtilsProcedures, typeof UtilsProcedure.invalidate> & {
+		[UtilsProcedure.client]: TClient;
 	};
 
 // createQueries
-type CreateQueriesResult<TOpts extends any[]> = ReturnType<
-	typeof createQueries<TOpts>
+type CreateQueriesResult<TOpts extends any[], TCombinedResult> = ReturnType<
+	typeof createQueries<TOpts, TCombinedResult>
 >;
+type CreateQueriesOpts<TOpts extends any[], TCombinedResult> = Omit<Parameters<typeof createQueries<TOpts, TCombinedResult>>[0], 'queries'>
+
 type CreateQueryOptionsForCreateQueries<TOutput, TError, TData> = Omit<
 	CreateQueryOptions<TOutput, TError, TData>,
 	'context' | 'queryKey' | 'queryFn'
@@ -222,11 +225,13 @@ type CreateQueriesRecord<TClient, TError> = {
 
 type CreateQueries<TClient, TError> = <
 	TOpts extends CreateQueryOptionsForCreateQueries<any, any, any>[],
->(
+	TCombinedResult = QueriesResults<TOpts>,
+> (
 	queriesCallback: (
 		t: CreateQueriesRecord<OnlyQueries<TClient>, TError>,
 	) => readonly [...TOpts],
-) => CreateQueriesResult<TOpts>;
+	opts?: CreateQueriesOpts<TOpts, TCombinedResult>
+) => CreateQueriesResult<TOpts, TCombinedResult>;
 
 // createServerQueries
 type CreateQueryOptionsForCreateServerQueries<TOutput, TError, TData> =
@@ -245,21 +250,23 @@ type CreateServerQueriesRecord<TClient, TError> = {
 
 type CreateServerQueries<TClient, TError> = <
 	TOpts extends CreateQueryOptionsForCreateQueries<any, any, any>[],
+	TCombinedResult = QueriesResults<TOpts>,
 >(
 	queriesCallback: (
 		t: CreateServerQueriesRecord<OnlyQueries<TClient>, TError>,
 	) => readonly [...TOpts],
+	opts?: CreateQueriesOpts<TOpts, TCombinedResult>
 ) => Promise<
 	(
 		queriesCallback?: (
 			t: CreateQueriesRecord<OnlyQueries<TClient>, TError>,
 			old: readonly [...TOpts],
 		) => readonly [...TOpts],
-	) => CreateQueriesResult<TOpts>
+	) => CreateQueriesResult<TOpts, TCombinedResult>
 >;
 
 // Procedures
-const ProcedureNames = {
+const Procedure = {
 	query: 'createQuery',
 	serverQuery: 'createServerQuery',
 	infiniteQuery: 'createInfiniteQuery',
@@ -289,12 +296,12 @@ type TRPCQueryOpts = {
 };
 
 type CreateQueryProcedure<TInput, TOutput, TError> = {
-	[ProcedureNames.query]: <TData = TOutput>(
+	[Procedure.query]: <TData = TOutput>(
 		input: TInput,
 		opts?: CreateTRPCQueryOptions<TOutput, TError, TData> & TRPCQueryOpts,
 	) => CreateQueryResult<TData, TError>;
 } & {
-	[ProcedureNames.serverQuery]: <TData = TOutput>(
+	[Procedure.serverQuery]: <TData = TOutput>(
 		input: TInput,
 		opts?: CreateTRPCServerQueryOptions<TOutput, TError, TData> & TRPCQueryOpts,
 	) => Promise<
@@ -325,13 +332,13 @@ type CreateInfiniteQueryProcedure<TInput, TOutput, TError> = (TInput extends {
 	cursor?: any;
 }
 	? {
-		[ProcedureNames.infiniteQuery]: <TData = TOutput>(
+		[Procedure.infiniteQuery]: <TData = TOutput>(
 			input: Omit<TInput, 'cursor'>,
 			opts: CreateTRPCInfiniteQueryOptions<TInput, TOutput, TError, TData> &
 				InfiniteQueryOpts<TInput> &
 				TRPCQueryOpts,
 		) => CreateInfiniteQueryResult<InfiniteData<TData, NonNullable<ExtractCursorType<TInput>> | null>, TError>;
-		[ProcedureNames.serverInfiniteQuery]: <TData = TOutput>(
+		[Procedure.serverInfiniteQuery]: <TData = TOutput>(
 			input: Omit<TInput, 'cursor'>,
 			opts: CreateTRPCServerInfiniteQueryOptions<TInput, TOutput, TError, TData> &
 				InfiniteQueryOpts<TInput> &
@@ -349,7 +356,7 @@ type QueryProcedures<TInput, TOutput, TError> = GetQueryKey<TInput> &
 	CreateInfiniteQueryProcedure<TInput, TOutput, TError>;
 
 type CreateMutationProcedure<TInput, TOutput, TError, TContext = unknown> = {
-	[ProcedureNames.mutate]: (
+	[Procedure.mutate]: (
 		opts?: CreateMutationOptions<TOutput, TError, TInput, TContext>,
 	) => CreateMutationResult<TOutput, TError, TInput, TContext>;
 } & {};
@@ -368,7 +375,7 @@ type GetSubscriptionOutput<TOpts> = TOpts extends unknown & Partial<infer A>
 	: never;
 
 type CreateSubscriptionProcedure<TInput, TOutput, TError> = {
-	[ProcedureNames.subscribe]: (
+	[Procedure.subscribe]: (
 		input: TInput,
 		opts?: CreateSubscriptionOptions<TOutput, TError>,
 	) => void;
@@ -428,7 +435,7 @@ const utilsProcedures: Record<
 	PropertyKey,
 	(opts: { path: string[]; queryClient: QueryClient; target: any }) => any
 > = {
-	[UtilsProcedureNames.fetch]: ({ path, queryClient, target }) => {
+	[UtilsProcedure.fetch]: ({ path, queryClient, target }) => {
 		return (input: any, opts?: any) => {
 			return queryClient.fetchQuery({
 				...opts,
@@ -437,7 +444,7 @@ const utilsProcedures: Record<
 			});
 		};
 	},
-	[UtilsProcedureNames.prefetch]: ({ path, queryClient, target }) => {
+	[UtilsProcedure.prefetch]: ({ path, queryClient, target }) => {
 		return (input: any, opts?: any) => {
 			return queryClient.prefetchQuery({
 				...opts,
@@ -446,7 +453,7 @@ const utilsProcedures: Record<
 			});
 		};
 	},
-	[UtilsProcedureNames.fetchInfinite]: ({ path, queryClient, target }) => {
+	[UtilsProcedure.fetchInfinite]: ({ path, queryClient, target }) => {
 		return (input: any, opts?: any) => {
 			return queryClient.fetchInfiniteQuery({
 				...opts,
@@ -456,7 +463,7 @@ const utilsProcedures: Record<
 			});
 		};
 	},
-	[UtilsProcedureNames.prefetchInfinite]: ({ path, queryClient, target }) => {
+	[UtilsProcedure.prefetchInfinite]: ({ path, queryClient, target }) => {
 		return (input: any, opts?: any) => {
 			return queryClient.prefetchInfiniteQuery({
 				...opts,
@@ -466,7 +473,7 @@ const utilsProcedures: Record<
 			});
 		};
 	},
-	[UtilsProcedureNames.ensureData]: ({ path, queryClient, target }) => {
+	[UtilsProcedure.ensureData]: ({ path, queryClient, target }) => {
 		return (input: any, opts?: any) => {
 			return queryClient.ensureQueryData({
 				...opts,
@@ -475,7 +482,7 @@ const utilsProcedures: Record<
 			});
 		};
 	},
-	[UtilsProcedureNames.invalidate]: ({ path, queryClient }) => {
+	[UtilsProcedure.invalidate]: ({ path, queryClient }) => {
 		return (input?: any, filters?: any, options?: any) => {
 			return queryClient.invalidateQueries(
 				{
@@ -486,7 +493,7 @@ const utilsProcedures: Record<
 			);
 		};
 	},
-	[UtilsProcedureNames.refetch]: ({ path, queryClient }) => {
+	[UtilsProcedure.refetch]: ({ path, queryClient }) => {
 		return (input?: any, filters?: any, options?: any) => {
 			return queryClient.refetchQueries(
 				{
@@ -497,7 +504,7 @@ const utilsProcedures: Record<
 			);
 		};
 	},
-	[UtilsProcedureNames.cancel]: ({ path, queryClient }) => {
+	[UtilsProcedure.cancel]: ({ path, queryClient }) => {
 		return (input?: any, filters?: any, options?: any) => {
 			return queryClient.cancelQueries(
 				{
@@ -508,7 +515,7 @@ const utilsProcedures: Record<
 			);
 		};
 	},
-	[UtilsProcedureNames.reset]: ({ queryClient, path }) => {
+	[UtilsProcedure.reset]: ({ queryClient, path }) => {
 		return (input?: any, filters?: any, options?: any) => {
 			return queryClient.resetQueries(
 				{
@@ -519,7 +526,7 @@ const utilsProcedures: Record<
 			);
 		};
 	},
-	[UtilsProcedureNames.setData]: ({ queryClient, path }) => {
+	[UtilsProcedure.setData]: ({ queryClient, path }) => {
 		return (input: any, updater: any, options?: any) => {
 			return queryClient.setQueryData(
 				getArrayQueryKey(path, input, 'query'),
@@ -528,7 +535,7 @@ const utilsProcedures: Record<
 			);
 		};
 	},
-	[UtilsProcedureNames.setInfiniteData]: ({ queryClient, path }) => {
+	[UtilsProcedure.setInfiniteData]: ({ queryClient, path }) => {
 		return (input: any, updater: any, options?: any) => {
 			return queryClient.setQueryData(
 				getArrayQueryKey(path, input, 'infinite'),
@@ -537,12 +544,12 @@ const utilsProcedures: Record<
 			);
 		};
 	},
-	[UtilsProcedureNames.getData]: ({ queryClient, path }) => {
+	[UtilsProcedure.getData]: ({ queryClient, path }) => {
 		return (input?: any) => {
 			return queryClient.getQueryData(getArrayQueryKey(path, input, 'query'));
 		};
 	},
-	[UtilsProcedureNames.getInfiniteData]: ({ queryClient, path }) => {
+	[UtilsProcedure.getInfiniteData]: ({ queryClient, path }) => {
 		return (input?: any) => {
 			return queryClient.getQueryData(
 				getArrayQueryKey(path, input, 'infinite')
@@ -556,7 +563,7 @@ function createUtilsProxy(client: any, queryClient: QueryClient) {
 		{},
 		{
 			get(_target, key, _receiver) {
-				if (key === UtilsProcedureNames.client) return client;
+				if (key === UtilsProcedure.client) return client;
 
 				if (Object.hasOwn(utilsProcedures, key)) {
 					const target = [...this.path].reduce(
@@ -583,10 +590,10 @@ const procedures: Record<
 		abortOnUnmount?: boolean;
 	}) => any
 > = {
-	[ProcedureNames.queryKey]: ({ path }) => {
+	[Procedure.queryKey]: ({ path }) => {
 		return (input: any, opts?: any) => getArrayQueryKey(path, input, opts);
 	},
-	[ProcedureNames.query]: ({ path, target, abortOnUnmount }) => {
+	[Procedure.query]: ({ path, target, abortOnUnmount }) => {
 		const targetFn = target.query;
 
 		return (input: any, opts?: any) => {
@@ -601,7 +608,7 @@ const procedures: Record<
 			});
 		};
 	},
-	[ProcedureNames.serverQuery]: ({
+	[Procedure.serverQuery]: ({
 		path,
 		target,
 		queryClient,
@@ -660,7 +667,7 @@ const procedures: Record<
 			};
 		};
 	},
-	[ProcedureNames.infiniteQuery]: ({ path, target, abortOnUnmount }) => {
+	[Procedure.infiniteQuery]: ({ path, target, abortOnUnmount }) => {
 		return (input: any, opts?: any) => {
 			const shouldAbortOnUnmount = opts?.trpc?.abortOnUnmount ?? abortOnUnmount;
 			return createInfiniteQuery({
@@ -677,7 +684,7 @@ const procedures: Record<
 			});
 		};
 	},
-	[ProcedureNames.serverInfiniteQuery]: ({
+	[Procedure.serverInfiniteQuery]: ({
 		path,
 		target,
 		queryClient,
@@ -746,7 +753,7 @@ const procedures: Record<
 			};
 		};
 	},
-	[ProcedureNames.mutate]: ({ path, target }) => {
+	[Procedure.mutate]: ({ path, target }) => {
 		return (opts?: any) => {
 			return createMutation({
 				...opts,
@@ -755,7 +762,7 @@ const procedures: Record<
 			});
 		};
 	},
-	[ProcedureNames.subscribe]: ({ target }) => {
+	[Procedure.subscribe]: ({ target }) => {
 		return (input: any, opts?: any) => {
 			const enabled = opts?.enabled ?? true;
 			if (!enabled) return;
@@ -779,20 +786,22 @@ const procedures: Record<
 			});
 		};
 	},
-	[ProcedureNames.queries]: ({ path, queriesProxy }) => {
+	[Procedure.queries]: ({ path, queriesProxy }) => {
 		if (path.length !== 0) return;
-		return (input: (...args: any[]) => any) => {
-			const proxy = queriesProxy();
-			return createQueries(input(proxy));
+		return (input: (...args: any[]) => any, opts?: any) => {
+			return createQueries({
+				...opts,
+				queries: input(queriesProxy())
+			});
 		};
 	},
-	[ProcedureNames.serverQueries]: ({ path, queriesProxy, queryClient }) => {
+	[Procedure.serverQueries]: ({ path, queriesProxy, queryClient }) => {
 		if (path.length !== 0) return;
 		const proxy = queriesProxy();
 
 		const defaultOptions = queryClient.getDefaultOptions();
 
-		return async (input: (...args: any[]) => any) => {
+		return async (input: (...args: any[]) => any, opts?: any) => {
 			const queries = await Promise.all(
 				input(proxy).map(async (query: any) => {
 					const cache = queryClient
@@ -821,15 +830,18 @@ const procedures: Record<
 			return (newInput?: (...args: any[]) => any) => {
 				let newQueries = queries;
 				if (newInput) newQueries = newInput(proxy, queries);
-				return createQueries({ queries: newQueries });
+				return createQueries({
+					...opts,
+					queries: newQueries
+				});
 			};
 		};
 	},
-	[ProcedureNames.utils]: ({ path, utilsProxy }) => {
+	[Procedure.utils]: ({ path, utilsProxy }) => {
 		if (path.length !== 0) return;
 		return utilsProxy;
 	},
-	[ProcedureNames.context]: ({ path, utilsProxy }) => {
+	[Procedure.context]: ({ path, utilsProxy }) => {
 		if (path.length !== 0) return;
 		return utilsProxy;
 	},
@@ -872,14 +884,14 @@ function getArrayQueryKey(
 
 type GetQueryKey<TInput = undefined> = [TInput] extends [undefined | void]
 	? {
-		[ProcedureNames.queryKey]: () => QueryKey;
+		[Procedure.queryKey]: () => QueryKey;
 	}
 	: {
 		/**
 		 * Method to extract the query key for a procedure
 		 * @param type - defaults to `any`
 		 */
-		[ProcedureNames.queryKey]: (input: TInput, type?: QueryType) => QueryKey;
+		[Procedure.queryKey]: (input: TInput, type?: QueryType) => QueryKey;
 	} & {};
 
 export function svelteQueryWrapper<TRouter extends AnyRouter>({
@@ -906,13 +918,13 @@ export function svelteQueryWrapper<TRouter extends AnyRouter>({
 				 *
 				 * @see https://trpc.io/docs/client/react/useUtils
 				 */
-				[ProcedureNames.context](): CreateUtils<Client, RouterError>;
+				[Procedure.context](): CreateUtils<Client, RouterError>;
 				/**
 				 * @see https://trpc.io/docs/client/react/useUtils
 				 */
-				[ProcedureNames.utils](): CreateUtils<Client, RouterError>;
-				[ProcedureNames.queries]: CreateQueries<Client, RouterError>;
-				[ProcedureNames.serverQueries]: CreateServerQueries<
+				[Procedure.utils](): CreateUtils<Client, RouterError>;
+				[Procedure.queries]: CreateQueries<Client, RouterError>;
+				[Procedure.serverQueries]: CreateServerQueries<
 					Client,
 					RouterError
 				>;
