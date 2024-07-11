@@ -791,7 +791,7 @@ const procedures: Record<
 		return (input: (...args: any[]) => any, opts?: any) => {
 			return createQueries({
 				...opts,
-				queries: input(queriesProxy())
+				queries: input(queriesProxy()),
 			});
 		};
 	},
@@ -832,7 +832,7 @@ const procedures: Record<
 				if (newInput) newQueries = newInput(proxy, queries);
 				return createQueries({
 					...opts,
-					queries: newQueries
+					queries: newQueries,
 				});
 			};
 		};

@@ -1,14 +1,10 @@
 {
   "name": "eslint-shared",
   "version": "1.0.0",
-  "description": "",
+  "description": "Shared ESLint config for this monorepo",
+  "type": "module",
   "main": "eslint.config.mjs",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+	"typings": "eslint.config.d.mts",
   "devDependencies": {
     "eslint-config-prettier": "^9.1.0",
     "globals": "^15.0.0"
