@@ -44,12 +44,12 @@ importers:
       eslint:
         specifier: ^9.0.0
         version: 9.6.0
-      eslint-config-prettier:
-        specifier: ^9.1.0
-        version: 9.1.0(eslint@9.6.0)
       eslint-plugin-svelte:
         specifier: ^2.36.0
         version: 2.41.0(eslint@9.6.0)(svelte@4.2.18)
+      eslint-shared:
+        specifier: workspace:^
+        version: link:../@eslint-shared
       globals:
         specifier: ^15.0.0
         version: 15.8.0
@@ -80,6 +80,15 @@ importers:
       vite:
         specifier: ^5.0.3
         version: 5.3.3(@types/node@20.14.10)
+
+  '@eslint-shared':
+    devDependencies:
+      eslint-config-prettier:
+        specifier: ^9.1.0
+        version: 9.1.0(eslint@9.6.0)
+      globals:
+        specifier: ^15.0.0
+        version: 15.8.0
 
   '@lib':
     dependencies:

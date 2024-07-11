@@ -1,0 +1,16 @@
+{
+  "name": "eslint-shared",
+  "version": "1.0.0",
+  "description": "",
+  "main": "eslint.config.mjs",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "eslint-config-prettier": "^9.1.0",
+    "globals": "^15.0.0"
+  }
+}
