@@ -8,12 +8,9 @@ importers:
 
   .:
     dependencies:
-      eslint-shared:
+      shared:
         specifier: workspace:^
-        version: link:@eslint-shared
-      prettier-shared:
-        specifier: workspace:^
-        version: link:@prettier-shared
+        version: link:@shared
     devDependencies:
       typescript:
         specifier: ^5.0.0
@@ -89,15 +86,6 @@ importers:
         specifier: ^5.0.3
         version: 5.3.3(@types/node@20.14.10)(sass@1.77.8)
 
-  '@eslint-shared':
-    devDependencies:
-      eslint-config-prettier:
-        specifier: ^9.1.0
-        version: 9.1.0(eslint@9.6.0)
-      globals:
-        specifier: ^15.0.0
-        version: 15.8.0
-
   '@lib':
     dependencies:
       '@tanstack/svelte-query':
@@ -123,7 +111,49 @@ importers:
         specifier: ^20.14.10
         version: 20.14.10
 
-  '@prettier-shared':
+  '@shared':
+    devDependencies:
+      eslint:
+        specifier: ^9.0.0
+        version: 9.6.0
+      eslint-config-prettier:
+        specifier: ^9.1.0
+        version: 9.1.0(eslint@9.6.0)
+      globals:
+        specifier: ^15.0.0
+        version: 15.8.0
+      prettier:
+        specifier: ^3.1.1
+        version: 3.3.2
+      typescript-eslint:
+        specifier: ^8.0.0-alpha.20
+        version: 8.0.0-alpha.41(eslint@9.6.0)(typescript@5.5.3)
+
+  '@shared/eslint':
+    devDependencies:
+      eslint-config-prettier:
+        specifier: ^9.1.0
+        version: 9.1.0(eslint@9.6.0)
+      globals:
+        specifier: ^15.0.0
+        version: 15.8.0
+
+  '@shared/prettier':
+    devDependencies:
+      prettier:
+        specifier: ^3.1.1
+        version: 3.3.2
+
+  '@utils/eslint-shared':
+    devDependencies:
+      eslint-config-prettier:
+        specifier: ^9.1.0
+        version: 9.1.0(eslint@9.6.0)
+      globals:
+        specifier: ^15.0.0
+        version: 15.8.0
+
+  '@utils/prettier-shared':
     devDependencies:
       prettier:
         specifier: ^3.1.1

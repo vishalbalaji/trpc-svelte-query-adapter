@@ -9,8 +9,8 @@ export const router = t.router({
 		.input(z.string().optional())
 		.query(async ({ input }) => {
 			await new Promise((r) => setTimeout(r, 500));
-			return `Hello ${input ?? 'tRPC'} v10 @ ${new Date().toLocaleTimeString()}`;
-		})
+			return `Hello ${input || 'tRPC v10'} @ ${new Date().toLocaleTimeString()}`;
+		}),
 });
 
 export const createCaller = t.createCallerFactory(router);

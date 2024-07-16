@@ -1,3 +1,3 @@
-import shared from 'eslint-shared';
+import shared from 'shared/eslint';
 
 export default shared;

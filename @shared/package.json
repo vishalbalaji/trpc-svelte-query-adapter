@@ -1,0 +1,17 @@
+{
+	"name": "shared",
+	"version": "1.0.0",
+	"description": "Shared utils for this monorepo",
+	"type": "module",
+	"exports": {
+		"./eslint": "./eslint/index.js",
+		"./prettier": "./prettier/index.js"
+	},
+	"devDependencies": {
+		"eslint": "^9.0.0",
+		"eslint-config-prettier": "^9.1.0",
+		"globals": "^15.0.0",
+		"prettier": "^3.1.1",
+		"typescript-eslint": "^8.0.0-alpha.20"
+	}
+}
