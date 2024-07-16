@@ -37,6 +37,8 @@ import {
 
 import { onDestroy } from 'svelte';
 
+type InnerClient = TRPCUntypedClient<AnyRouter>;
+
 // CREDIT: https://stackoverflow.com/a/63448246
 type WithNevers<T, V> = {
 	[K in keyof T]: Exclude<T[K], undefined> extends V
@@ -436,7 +438,7 @@ function createQueriesProxy({
 	client,
 	abortOnUnmount,
 }: {
-	client: TRPCUntypedClient<AnyRouter>;
+	client: InnerClient;
 	abortOnUnmount?: boolean;
 }) {
 	return new DeepProxy(
@@ -468,7 +470,7 @@ const utilsProcedures: Record<
 	(ctx: {
 		path: string[];
 		queryClient: QueryClient;
-		client: TRPCUntypedClient<AnyRouter>;
+		client: InnerClient;
 	}) => any
 > = {
 	[UtilsProcedure.fetch]: ({ path, queryClient, client }) => {
@@ -598,7 +600,7 @@ function createUtilsProxy({
 	client,
 	queryClient,
 }: {
-	client: TRPCUntypedClient<AnyRouter>;
+	client: InnerClient;
 	queryClient: QueryClient;
 }) {
 	return new DeepProxy(
@@ -624,7 +626,7 @@ function createUtilsProxy({
 const procedures: Record<
 	PropertyKey,
 	(ctx: {
-		client: TRPCUntypedClient<AnyRouter>;
+		client: InnerClient;
 		path: string[];
 		queryClient: QueryClient;
 		queriesProxy: () => any;
@@ -937,7 +939,8 @@ export function svelteQueryWrapper<TRouter extends AnyRouter>({
 	type ClientWithQuery = AddQueryPropTypes<Client, RouterError>;
 
 	const qc = queryClient ?? useQueryClient();
-	const innerClient = client.__untypedClient as TRPCUntypedClient<TRouter>;
+	// REFER: https://github.com/trpc/trpc/blob/c6e46bbd493f0ea32367eaa33c3cabe19a2614a0/packages/client/src/createTRPCClient.ts#L143
+	const innerClient = client.__untypedClient as InnerClient;
 
 	return new DeepProxy(
 		{} as ClientWithQuery &
@@ -960,7 +963,6 @@ export function svelteQueryWrapper<TRouter extends AnyRouter>({
 		{
 			get(_, key) {
 				if (Object.hasOwn(procedures, key)) {
-					// REFER: https://github.com/trpc/trpc/blob/c6e46bbd493f0ea32367eaa33c3cabe19a2614a0/packages/client/src/createTRPCClient.ts#L143
 					return procedures[key]({
 						client: innerClient,
 						path: this.path,
