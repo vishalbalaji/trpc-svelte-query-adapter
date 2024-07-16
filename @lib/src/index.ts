@@ -1,6 +1,6 @@
 import DeepProxy from 'proxy-deep';
 
-import type { TRPCClientErrorLike, CreateTRPCProxyClient } from '@trpc/client';
+import { type TRPCClientErrorLike, type CreateTRPCProxyClient, TRPCUntypedClient } from '@trpc/client';
 import type { AnyRouter } from '@trpc/server';
 
 import {
@@ -407,7 +407,10 @@ type AddQueryPropTypes<TClient, TError> =
 	: TClient;
 
 // Implementation
-function createQueriesProxy(client: any) {
+function createQueriesProxy({ client, abortOnUnmount }: {
+	client: TRPCUntypedClient<AnyRouter>,
+	abortOnUnmount?: boolean
+}) {
 	return new DeepProxy(
 		{},
 		{
@@ -415,17 +418,16 @@ function createQueriesProxy(client: any) {
 				return this.nest(() => { });
 			},
 			apply(_target, _thisArg, argList) {
-				const target = [...this.path].reduce(
-					(client, value) => client[value],
-					client
-				);
 				const [input, opts] = argList;
+				const shouldAbortOnUnmount = opts?.trpc?.abortOnUnmount ?? abortOnUnmount;
 
 				return {
 					...opts,
 					queryKey: getArrayQueryKey(this.path, input, 'query'),
-					queryFn: () => target.query(input),
-				};
+					queryFn: ({ signal }) => client.query(this.path.join('.'), input, {
+						...(shouldAbortOnUnmount && { signal }),
+					}),
+				} satisfies CreateQueryOptions;
 			},
 		}
 	);
@@ -433,52 +435,56 @@ function createQueriesProxy(client: any) {
 
 const utilsProcedures: Record<
 	PropertyKey,
-	(opts: { path: string[]; queryClient: QueryClient; target: any }) => any
+	(ctx: {
+		path: string[];
+		queryClient: QueryClient;
+		client: TRPCUntypedClient<AnyRouter>,
+	}) => any
 > = {
-	[UtilsProcedure.fetch]: ({ path, queryClient, target }) => {
+	[UtilsProcedure.fetch]: ({ path, queryClient, client }) => {
 		return (input: any, opts?: any) => {
 			return queryClient.fetchQuery({
 				...opts,
 				queryKey: getArrayQueryKey(path, input, 'query'),
-				queryFn: () => target.query(input),
+				queryFn: () => client.query(path.join('.'), input),
 			});
 		};
 	},
-	[UtilsProcedure.prefetch]: ({ path, queryClient, target }) => {
+	[UtilsProcedure.prefetch]: ({ path, queryClient, client }) => {
 		return (input: any, opts?: any) => {
 			return queryClient.prefetchQuery({
 				...opts,
 				queryKey: getArrayQueryKey(path, input, 'query'),
-				queryFn: () => target.query(input),
+				queryFn: () => client.query(path.join('.'), input),
 			});
 		};
 	},
-	[UtilsProcedure.fetchInfinite]: ({ path, queryClient, target }) => {
+	[UtilsProcedure.fetchInfinite]: ({ path, queryClient, client }) => {
 		return (input: any, opts?: any) => {
 			return queryClient.fetchInfiniteQuery({
 				...opts,
 				queryKey: getArrayQueryKey(path, input, 'infinite'),
 				queryFn: ({ pageParam }: { pageParam: number }) =>
-					target.query({ ...input, cursor: pageParam }),
+					client.query(path.join('.'), { ...input, cursor: pageParam }),
 			});
 		};
 	},
-	[UtilsProcedure.prefetchInfinite]: ({ path, queryClient, target }) => {
+	[UtilsProcedure.prefetchInfinite]: ({ path, queryClient, client }) => {
 		return (input: any, opts?: any) => {
 			return queryClient.prefetchInfiniteQuery({
 				...opts,
 				queryKey: getArrayQueryKey(path, input, 'infinite'),
 				queryFn: ({ pageParam }: { pageParam: number }) =>
-					target.query({ ...input, cursor: pageParam }),
+					client.query(path.join('.'), { ...input, cursor: pageParam }),
 			});
 		};
 	},
-	[UtilsProcedure.ensureData]: ({ path, queryClient, target }) => {
+	[UtilsProcedure.ensureData]: ({ path, queryClient, client }) => {
 		return (input: any, opts?: any) => {
 			return queryClient.ensureQueryData({
 				...opts,
 				queryKey: getArrayQueryKey(path, input, 'query'),
-				queryFn: () => target.query(input),
+				queryFn: () => client.query(path.join('.'), input),
 			});
 		};
 	},
@@ -558,7 +564,7 @@ const utilsProcedures: Record<
 	},
 };
 
-function createUtilsProxy(client: any, queryClient: QueryClient) {
+function createUtilsProxy({ client, queryClient }: { client: TRPCUntypedClient<AnyRouter>, queryClient: QueryClient }) {
 	return new DeepProxy(
 		{},
 		{
@@ -566,11 +572,11 @@ function createUtilsProxy(client: any, queryClient: QueryClient) {
 				if (key === UtilsProcedure.client) return client;
 
 				if (Object.hasOwn(utilsProcedures, key)) {
-					const target = [...this.path].reduce(
-						(client, value) => client[value],
-						client as Record<PropertyKey, any>
-					);
-					return utilsProcedures[key]({ path: this.path, target, queryClient });
+					return utilsProcedures[key]({
+						path: this.path,
+						client,
+						queryClient,
+					});
 				}
 
 				return this.nest(() => { });
@@ -581,9 +587,9 @@ function createUtilsProxy(client: any, queryClient: QueryClient) {
 
 const procedures: Record<
 	PropertyKey,
-	(opts: {
+	(ctx: {
+		client: TRPCUntypedClient<AnyRouter>
 		path: string[];
-		target: any;
 		queryClient: QueryClient;
 		queriesProxy: () => any;
 		utilsProxy: () => any;
@@ -593,37 +599,33 @@ const procedures: Record<
 	[Procedure.queryKey]: ({ path }) => {
 		return (input: any, opts?: any) => getArrayQueryKey(path, input, opts);
 	},
-	[Procedure.query]: ({ path, target, abortOnUnmount }) => {
-		const targetFn = target.query;
-
+	[Procedure.query]: ({ path, client, abortOnUnmount }) => {
 		return (input: any, opts?: any) => {
 			const shouldAbortOnUnmount = opts?.trpc?.abortOnUnmount ?? abortOnUnmount;
 			return createQuery({
 				...opts,
 				queryKey: getArrayQueryKey(path, input, 'query'),
-				queryFn: ({ signal }) =>
-					targetFn(input, {
-						...(shouldAbortOnUnmount && { signal }),
-					}),
+				queryFn: ({ signal }) => client.query(path.join('.'), input, {
+					...(shouldAbortOnUnmount && { signal }),
+				}),
 			});
 		};
 	},
 	[Procedure.serverQuery]: ({
 		path,
-		target,
+		client,
 		queryClient,
 		abortOnUnmount,
 	}) => {
-		const targetFn = target.query;
+		const pathString = path.join('.');
 
 		return async (input: any, opts?: any) => {
 			const shouldAbortOnUnmount = opts?.trpc?.abortOnUnmount ?? abortOnUnmount;
 			const query: FetchQueryOptions = {
 				queryKey: getArrayQueryKey(path, input, 'query'),
-				queryFn: ({ signal }) =>
-					targetFn(input, {
-						...(shouldAbortOnUnmount && { signal }),
-					}),
+				queryFn: ({ signal }) => client.query(pathString, input, {
+					...(shouldAbortOnUnmount && { signal }),
+				}),
 			};
 
 			const cache = queryClient
@@ -645,10 +647,9 @@ const procedures: Record<
 					if (typeof newInput === 'function') i = newInput(input);
 					newQuery = {
 						queryKey: getArrayQueryKey(path, i, 'query'),
-						queryFn: ({ signal }) =>
-							targetFn(i, {
-								...(shouldAbortOnUnmount && { signal }),
-							}),
+						queryFn: ({ signal }) => client.query(pathString, i, {
+							...(shouldAbortOnUnmount && { signal }),
+						}),
 					};
 				}
 
@@ -667,7 +668,7 @@ const procedures: Record<
 			};
 		};
 	},
-	[Procedure.infiniteQuery]: ({ path, target, abortOnUnmount }) => {
+	[Procedure.infiniteQuery]: ({ path, client, abortOnUnmount }) => {
 		return (input: any, opts?: any) => {
 			const shouldAbortOnUnmount = opts?.trpc?.abortOnUnmount ?? abortOnUnmount;
 			return createInfiniteQuery({
@@ -675,41 +676,35 @@ const procedures: Record<
 				initialPageParam: opts.initialCursor ?? null,
 				queryKey: getArrayQueryKey(path, input, 'infinite'),
 				queryFn: ({ pageParam, signal }) =>
-					target.query({
-						...input,
-						cursor: pageParam ?? opts?.initialCursor,
-					}, {
-						...(shouldAbortOnUnmount && { signal }),
-					}),
+					client.query(
+						path.join('.'),
+						{ ...input, cursor: pageParam ?? opts?.initialCursor },
+						{ ...(shouldAbortOnUnmount && { signal }) }
+					),
 			});
 		};
 	},
 	[Procedure.serverInfiniteQuery]: ({
 		path,
-		target,
+		client,
 		queryClient,
 		abortOnUnmount,
 	}) => {
-		const targetFn = target.query;
+		const pathString = path.join('.');
 
 		return async (input: any, opts?: any) => {
 			const shouldAbortOnUnmount = opts?.trpc?.abortOnUnmount ?? abortOnUnmount;
 			const query: Omit<FetchInfiniteQueryOptions, 'initialPageParam'> = {
 				queryKey: getArrayQueryKey(path, input, 'infinite'),
 				queryFn: ({ pageParam, signal }) =>
-					targetFn(
-						{
-							...input,
-							cursor: pageParam ?? opts?.initialCursor,
-						},
-						{
-							...(shouldAbortOnUnmount && { signal }),
-						}),
+					client.query(
+						pathString,
+						{ ...input, cursor: pageParam ?? opts?.initialCursor },
+						{ ...(shouldAbortOnUnmount && { signal }) }
+					),
 			};
 
-			const cache = queryClient
-				.getQueryCache()
-				.find({ queryKey: query.queryKey });
+			const cache = queryClient.getQueryCache().find({ queryKey: query.queryKey });
 			const cacheNotFound = !cache?.state?.data;
 			if (opts?.ssr !== false && cacheNotFound) {
 				await queryClient.prefetchInfiniteQuery(query as any);
@@ -724,14 +719,11 @@ const procedures: Record<
 					if (typeof newInput === 'function') i = newInput(input);
 					newQuery = {
 						queryKey: getArrayQueryKey(path, i, 'infinite'),
-						queryFn: ({ pageParam, signal }) => targetFn(
-							{
-								...i,
-								cursor: pageParam ?? opts?.initialCursor,
-							},
-							{
-								...(shouldAbortOnUnmount && { signal }),
-							}),
+						queryFn: ({ pageParam, signal }) => client.query(
+							pathString,
+							{ ...i, cursor: pageParam ?? opts?.initialCursor },
+							{ ...(shouldAbortOnUnmount && { signal }) }
+						),
 					};
 				}
 
@@ -753,22 +745,22 @@ const procedures: Record<
 			};
 		};
 	},
-	[Procedure.mutate]: ({ path, target }) => {
+	[Procedure.mutate]: ({ path, client }) => {
 		return (opts?: any) => {
 			return createMutation({
 				...opts,
 				mutationKey: path,
-				mutationFn: (data) => target.mutate(data),
+				mutationFn: (data) => client.mutation(path.join('.'), data),
 			});
 		};
 	},
-	[Procedure.subscribe]: ({ target }) => {
+	[Procedure.subscribe]: ({ path, client }) => {
 		return (input: any, opts?: any) => {
 			const enabled = opts?.enabled ?? true;
 			if (!enabled) return;
 
 			let isStopped = false;
-			const subscription = target.subscribe(input, {
+			const subscription = client.subscription(path.join('.'), input, {
 				onStarted: () => {
 					if (!isStopped) opts?.onStarted?.();
 				},
@@ -933,16 +925,14 @@ export function svelteQueryWrapper<TRouter extends AnyRouter>({
 		{
 			get(_, key) {
 				if (Object.hasOwn(procedures, key)) {
-					const target = [...this.path].reduce(
-						(client, value) => client[value],
-						client as Record<PropertyKey, any>
-					);
+					// REFER: https://github.com/trpc/trpc/blob/c6e46bbd493f0ea32367eaa33c3cabe19a2614a0/packages/client/src/createTRPCClient.ts#L143
+					const innerClient = client.__untypedClient as TRPCUntypedClient<TRouter>;
 					return procedures[key]({
+						client: innerClient,
 						path: this.path,
-						target,
 						queryClient: qc,
-						queriesProxy: () => createQueriesProxy(client),
-						utilsProxy: () => createUtilsProxy(client, qc),
+						queriesProxy: () => createQueriesProxy({ client: innerClient, abortOnUnmount }),
+						utilsProxy: () => createUtilsProxy({ client: innerClient, queryClient: qc }),
 						abortOnUnmount,
 					});
 				}
