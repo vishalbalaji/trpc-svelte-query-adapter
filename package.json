@@ -10,6 +10,7 @@
     "typescript": "^5.0.0"
   },
   "dependencies": {
-    "eslint-shared": "workspace:^"
+    "eslint-shared": "workspace:^",
+    "prettier-shared": "workspace:^"
   }
 }
