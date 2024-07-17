@@ -16,6 +16,7 @@
     "db:studio": "drizzle-kit studio"
   },
   "devDependencies": {
+    "@fontsource-variable/inter": "^5.0.19",
     "@sveltejs/adapter-auto": "^3.0.0",
     "@sveltejs/kit": "^2.0.0",
     "@sveltejs/vite-plugin-svelte": "^3.0.0",
@@ -25,6 +26,7 @@
     "eslint": "^9.0.0",
     "eslint-plugin-svelte": "^2.36.0",
     "globals": "^15.0.0",
+    "phosphor-svelte": "^2.0.1",
     "prettier": "^3.1.1",
     "prettier-plugin-svelte": "^3.1.2",
     "svelte": "^4.2.7",
@@ -37,6 +39,7 @@
   },
   "type": "module",
   "dependencies": {
+    "@picocss/pico": "^2.0.6",
     "@tanstack/svelte-query": "^5.50.3",
     "@trpc/client": "^10.45.2",
     "@trpc/server": "^10.45.2",
