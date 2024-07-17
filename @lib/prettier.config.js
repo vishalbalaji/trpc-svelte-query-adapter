@@ -1,3 +1,1 @@
-import shared from 'shared/prettier';
-
-export default shared;
+export { default } from 'shared/prettier';

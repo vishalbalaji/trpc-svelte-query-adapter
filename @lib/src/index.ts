@@ -47,6 +47,7 @@ type WithNevers<T, V> = {
 			? Without<T[K], V>
 			: T[K];
 };
+
 type Without<T, V, I = WithNevers<T, V>> = Pick<
 	I,
 	{ [K in keyof I]: I[K] extends never ? never : K }[keyof I]
@@ -434,13 +435,14 @@ type AddQueryPropTypes<TClient, TError> =
 		: TClient;
 
 // Implementation
-function createQueriesProxy({
-	client,
-	abortOnUnmount,
-}: {
+type AdapterContext = {
 	client: InnerClient;
+	queryClient: QueryClient;
+	path: string[];
 	abortOnUnmount?: boolean;
-}) {
+};
+
+function createQueriesProxy({ client, abortOnUnmount }: AdapterContext) {
 	return new DeepProxy(
 		{},
 		{
@@ -596,13 +598,7 @@ const utilsProcedures: Record<
 	},
 };
 
-function createUtilsProxy({
-	client,
-	queryClient,
-}: {
-	client: InnerClient;
-	queryClient: QueryClient;
-}) {
+function createUtilsProxy({ client, queryClient }: AdapterContext) {
 	return new DeepProxy(
 		{},
 		{
@@ -623,17 +619,7 @@ function createUtilsProxy({
 	);
 }
 
-const procedures: Record<
-	PropertyKey,
-	(ctx: {
-		client: InnerClient;
-		path: string[];
-		queryClient: QueryClient;
-		queriesProxy: () => any;
-		utilsProxy: () => any;
-		abortOnUnmount?: boolean;
-	}) => any
-> = {
+const procedures: Record<PropertyKey, (ctx: AdapterContext) => any> = {
 	[Procedure.queryKey]: ({ path }) => {
 		return (input: any, opts?: any) => getArrayQueryKey(path, input, opts);
 	},
@@ -817,18 +803,19 @@ const procedures: Record<
 			});
 		};
 	},
-	[Procedure.queries]: ({ path, queriesProxy }) => {
-		if (path.length !== 0) return;
+	[Procedure.queries]: (ctx) => {
+		if (ctx.path.length !== 0) return;
 		return (input: (...args: any[]) => any, opts?: any) => {
 			return createQueries({
 				...opts,
-				queries: input(queriesProxy()),
+				queries: input(createQueriesProxy(ctx)),
 			});
 		};
 	},
-	[Procedure.serverQueries]: ({ path, queriesProxy, queryClient }) => {
+	[Procedure.serverQueries]: (ctx) => {
+		const { path, queryClient } = ctx;
 		if (path.length !== 0) return;
-		const proxy = queriesProxy();
+		const proxy = createQueriesProxy(ctx);
 
 		const defaultOptions = queryClient.getDefaultOptions();
 
@@ -868,13 +855,13 @@ const procedures: Record<
 			};
 		};
 	},
-	[Procedure.utils]: ({ path, utilsProxy }) => {
-		if (path.length !== 0) return;
-		return utilsProxy;
+	[Procedure.utils]: (ctx) => {
+		if (ctx.path.length !== 0) return;
+		return () => createUtilsProxy(ctx);
 	},
-	[Procedure.context]: ({ path, utilsProxy }) => {
-		if (path.length !== 0) return;
-		return utilsProxy;
+	[Procedure.context]: (ctx) => {
+		if (ctx.path.length !== 0) return;
+		return () => createUtilsProxy(ctx);
 	},
 };
 
@@ -927,7 +914,7 @@ type GetQueryKey<TInput = undefined> = [TInput] extends [undefined | void]
 
 export function svelteQueryWrapper<TRouter extends AnyRouter>({
 	client,
-	queryClient,
+	queryClient: _queryClient,
 	abortOnUnmount,
 }: {
 	client: CreateTRPCProxyClient<TRouter>;
@@ -938,7 +925,8 @@ export function svelteQueryWrapper<TRouter extends AnyRouter>({
 	type RouterError = TRPCClientErrorLike<TRouter>;
 	type ClientWithQuery = AddQueryPropTypes<Client, RouterError>;
 
-	const qc = queryClient ?? useQueryClient();
+	const queryClient = _queryClient ?? useQueryClient();
+
 	// REFER: https://github.com/trpc/trpc/blob/c6e46bbd493f0ea32367eaa33c3cabe19a2614a0/packages/client/src/createTRPCClient.ts#L143
 	const innerClient = client.__untypedClient as InnerClient;
 
@@ -966,11 +954,7 @@ export function svelteQueryWrapper<TRouter extends AnyRouter>({
 					return procedures[key]({
 						client: innerClient,
 						path: this.path,
-						queryClient: qc,
-						queriesProxy: () =>
-							createQueriesProxy({ client: innerClient, abortOnUnmount }),
-						utilsProxy: () =>
-							createUtilsProxy({ client: innerClient, queryClient: qc }),
+						queryClient,
 						abortOnUnmount,
 					});
 				}
