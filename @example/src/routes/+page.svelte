@@ -1,12 +1,18 @@
-<div style="display:flex;flex-direction:column;gap:2rem;">
-	<h1 style="margin:0">
-		<span class="inline-code">tRPC</span>
-		- Svelte-Query Adapter Playground
-	</h1>
+<script>
+	import Heading from '$lib/components/Heading.svelte';
+</script>
 
-	<ul>
-		<li>
-			<a href="/csr">Client-Side Rendering</a>
-		</li>
-	</ul>
+<div style="display:flex;flex-direction:column;gap:2rem;">
+	<div style="display:flex;align-items:center;justify-content:space-between;">
+		<Heading prefix={false}>
+			tRPC - Svelte-Query Adapter Demo
+		</Heading>
+	</div>
+
+	<div>
+		<h2>Examples</h2>
+		<ul>
+			<li><a href="/client-only">Client-only</a></li>
+		</ul>
+	</div>
 </div>

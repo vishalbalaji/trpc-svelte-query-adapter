@@ -13,15 +13,35 @@ export const router = t.router({
 			.input(z.string().min(1, 'Todo text cannot be empty'))
 			.mutation(async ({ input: text, ctx: { db } }) => {
 				await new Promise((r) => setTimeout(r, 2000));
-				return (await db.insert(todo).values({ text }).returning())?.[0];
+				return db
+					.insert(todo)
+					.values({ text })
+					.returning()
+					.then((r) => r[0]);
 			}),
 
-		getAll: t.procedure.query(({ ctx: { db } }) => db.query.todo.findMany()),
-		getOne: t.procedure
-			.input(z.number())
-			.query(({ input: id, ctx: { db } }) =>
-				db.query.todo.findFirst({ where: (t, { eq }) => eq(t.id, id) })
-			),
+		get: t.procedure.query(({ ctx: { db } }) => db.query.todo.findMany()),
+
+		getPopular: t.procedure
+			.input(
+				z.object({
+					cursor: z.number().optional(),
+					limit: z.number().optional(),
+				})
+			)
+			.query(async ({ input: { cursor: start = 0, limit = 10 } }) => {
+				const res = await fetch(
+					`https://jsonplaceholder.typicode.com/todos?_start=${start}&_limit=${limit}`
+				);
+				const todos = (await res.json()) as {
+					userId: number;
+					id: number;
+					title: string;
+					completed: boolean;
+				}[];
+
+				return { todos, nextCursor: start + limit };
+			}),
 
 		update: t.procedure
 			.input(

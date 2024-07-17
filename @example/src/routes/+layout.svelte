@@ -30,4 +30,10 @@
 		height: 100%;
 		padding: 1rem;
 	}
+
+	@media (min-width: 1024px) {
+		main.container {
+			overflow: hidden;
+		}
+	}
 </style>
