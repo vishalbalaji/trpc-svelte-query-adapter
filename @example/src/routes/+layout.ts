@@ -7,6 +7,7 @@ export async function load() {
 			queries: {
 				enabled: browser,
 				refetchOnWindowFocus: false,
+				staleTime: 10 * 60 * 1000,
 			},
 		},
 	});

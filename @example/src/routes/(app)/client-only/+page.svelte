@@ -22,18 +22,18 @@
 
 	const createTodo = api.todos.create.createMutation({
 		onSuccess() {
-			utils.todos.invalidate();
+			utils.todos.get.invalidate();
 			todoInput.value = '';
 		},
 	});
 	const deleteTodo = api.todos.delete.createMutation({
 		onSuccess: () => {
-			utils.todos.invalidate();
+			utils.todos.get.invalidate();
 		},
 	});
 	const updateTodo = api.todos.update.createMutation({
 		onSuccess: () => {
-			utils.todos.invalidate();
+			utils.todos.get.invalidate();
 		},
 	});
 </script>
@@ -138,9 +138,13 @@
 
 	<div>
 		<h2>Popular Todos (not really)</h2>
-		<button on:click|preventDefault={() => $popularTodos.fetchNextPage()}
-			>Fetch more</button
+		<button
+			on:click|preventDefault={() => $popularTodos.fetchNextPage()}
+			class="outline"
+			style="display:block;margin-left:auto"
 		>
+			Fetch more
+		</button>
 		<hr />
 
 		{#if $popularTodos.isPending || $popularTodos.isFetching}
