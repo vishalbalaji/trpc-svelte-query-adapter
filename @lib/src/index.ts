@@ -36,6 +36,7 @@ import {
 } from '@tanstack/svelte-query';
 
 import { onDestroy } from 'svelte';
+import { Readable } from 'svelte/store';
 
 type InnerClient = TRPCUntypedClient<AnyRouter>;
 
@@ -305,7 +306,7 @@ type TRPCQueryOpts = {
 	};
 };
 
-type CreateQueryProcedure<TInput, TOutput, TError> = {
+type CreateQueryProcedure<TInput = any, TOutput = any, TError = any> = {
 	[Procedure.query]: <TData = TOutput>(
 		input: TInput,
 		opts?: CreateTRPCQueryOptions<TOutput, TError, TData> & TRPCQueryOpts
@@ -345,45 +346,43 @@ type InfiniteQueryOpts<TInput> = {
 	initialCursor?: ExtractCursorType<TInput>;
 };
 
-type CreateInfiniteQueryProcedure<TInput, TOutput, TError> = (TInput extends {
-	cursor?: any;
-}
-	? {
-			[Procedure.infiniteQuery]: <TData = TOutput>(
-				input: Omit<TInput, 'cursor'>,
-				opts: CreateTRPCInfiniteQueryOptions<TInput, TOutput, TError, TData> &
-					InfiniteQueryOpts<TInput> &
-					TRPCQueryOpts
-			) => CreateInfiniteQueryResult<
-				InfiniteData<TData, NonNullable<ExtractCursorType<TInput>> | null>,
-				TError
-			>;
-			[Procedure.serverInfiniteQuery]: <TData = TOutput>(
-				input: Omit<TInput, 'cursor'>,
-				opts: CreateTRPCServerInfiniteQueryOptions<
-					TInput,
-					TOutput,
-					TError,
-					TData
-				> &
-					InfiniteQueryOpts<TInput> &
-					TRPCQueryOpts
-			) => Promise<
-				(
-					...args: [TInput | ((old: TInput) => TInput)] | []
-				) => CreateInfiniteQueryResult<
-					InfiniteData<TData, NonNullable<ExtractCursorType<TInput>> | null>,
-					TError
-				>
-			>;
-		}
-	: {}) & {};
+type CreateInfiniteQueryProcedure<TInput = any, TOutput = any, TError = any> = {
+	[Procedure.infiniteQuery]: <TData = TOutput>(
+		input: Omit<TInput, 'cursor'>,
+		opts: CreateTRPCInfiniteQueryOptions<TInput, TOutput, TError, TData> &
+			InfiniteQueryOpts<TInput> &
+			TRPCQueryOpts
+	) => CreateInfiniteQueryResult<
+		InfiniteData<TData, NonNullable<ExtractCursorType<TInput>> | null>,
+		TError
+	>;
+	[Procedure.serverInfiniteQuery]: <TData = TOutput>(
+		input: Omit<TInput, 'cursor'>,
+		opts: CreateTRPCServerInfiniteQueryOptions<TInput, TOutput, TError, TData> &
+			InfiniteQueryOpts<TInput> &
+			TRPCQueryOpts
+	) => Promise<
+		(
+			...args: [TInput | ((old: TInput) => TInput)] | []
+		) => CreateInfiniteQueryResult<
+			InfiniteData<TData, NonNullable<ExtractCursorType<TInput>> | null>,
+			TError
+		>
+	>;
+};
 
 type QueryProcedures<TInput, TOutput, TError> = GetQueryKey<TInput> &
 	CreateQueryProcedure<TInput, TOutput, TError> &
-	CreateInfiniteQueryProcedure<TInput, TOutput, TError>;
+	(TInput extends { cursor?: any }
+		? CreateInfiniteQueryProcedure<TInput, TOutput, TError>
+		: {});
 
-type CreateMutationProcedure<TInput, TOutput, TError, TContext = unknown> = {
+type CreateMutationProcedure<
+	TInput = any,
+	TOutput = any,
+	TError = any,
+	TContext = unknown,
+> = {
 	[Procedure.mutate]: (
 		opts?: CreateMutationOptions<TOutput, TError, TInput, TContext>
 	) => CreateMutationResult<TOutput, TError, TInput, TContext>;
@@ -402,7 +401,7 @@ type GetSubscriptionOutput<TOpts> = TOpts extends unknown & Partial<infer A>
 		: never
 	: never;
 
-type CreateSubscriptionProcedure<TInput, TOutput, TError> = {
+type CreateSubscriptionProcedure<TInput = any, TOutput = any, TError = any> = {
 	[Procedure.subscribe]: (
 		input: TInput,
 		opts?: CreateSubscriptionOptions<TOutput, TError>
@@ -911,6 +910,30 @@ type GetQueryKey<TInput = undefined> = [TInput] extends [undefined | void]
 			 */
 			[Procedure.queryKey]: (input: TInput, type?: QueryType) => QueryKey;
 		} & {};
+
+type ProcType<T> = T extends CreateInfiniteQueryProcedure
+	? Exclude<QueryType, 'any'>
+	: never;
+
+type ValFromStore<T> = T extends Readable<infer U> ? U : T;
+
+// prettier-ignore
+export type InferProcedureOpts<
+	T extends
+		| CreateQueryProcedure
+		| CreateInfiniteQueryProcedure
+		| CreateMutationProcedure
+		| CreateSubscriptionProcedure,
+	TType extends ProcType<T> = (T extends CreateInfiniteQueryProcedure ? 'query' : never),
+> = T extends CreateMutationProcedure ? ValFromStore<Parameters<T[typeof Procedure.mutate]>[0]>
+	: T extends CreateSubscriptionProcedure ? ValFromStore<Parameters<T[typeof Procedure.subscribe]>[1]>
+	: T extends CreateQueryProcedure ?
+			T extends CreateInfiniteQueryProcedure ?
+				TType extends 'query'
+				? ValFromStore<Parameters<T[typeof Procedure.query]>[1]>
+				: ValFromStore<Parameters<T[typeof Procedure.infiniteQuery]>[1]>
+			: ValFromStore<Parameters<T[typeof Procedure.query]>[1]>
+	: never;
 
 export function svelteQueryWrapper<TRouter extends AnyRouter>({
 	client,
