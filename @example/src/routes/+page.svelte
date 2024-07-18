@@ -13,6 +13,7 @@
 		<h2>Examples</h2>
 		<ul>
 			<li><a href="/client-only">Client-only</a></li>
+			<li><a href="/ssr">SSR</a></li>
 		</ul>
 	</div>
 </div>
