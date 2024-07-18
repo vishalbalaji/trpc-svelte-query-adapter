@@ -130,7 +130,7 @@
 	</div>
 
 	<div>
-		<h2>Popular Todos (not really)</h2>
+		<h2>Popular Todos (from JSONPlaceholder API)</h2>
 		<button
 			on:click|preventDefault={() => $popularTodos.fetchNextPage()}
 			class="outline"
