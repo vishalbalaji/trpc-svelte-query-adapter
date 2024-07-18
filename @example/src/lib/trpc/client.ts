@@ -10,7 +10,7 @@ export function trpc(init?: TRPCClientInit, queryClient?: QueryClient) {
 	if (isBrowser && browserClient) return browserClient;
 	const client = svelteQueryWrapper<Router>({
 		client: createTRPCClient<Router>({ init }),
-		queryClient
+		queryClient,
 	});
 	if (isBrowser) browserClient = client;
 	return client;

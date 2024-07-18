@@ -3,13 +3,13 @@
   "private": true,
   "scripts": {
     "lib": "pnpm --filter=trpc-svelte-query-adapter",
-    "app": "pnpm --filter=app",
+    "app": "pnpm --filter=example",
     "list-pkgs": "pnpm m ls --json --depth=-1 | node -e \"const path = require('path'); console.log(JSON.parse(require('fs').readFileSync('/dev/stdin', 'utf-8')).map((m) => path.relative(__dirname, m.path)).filter(Boolean))\""
   },
   "devDependencies": {
     "typescript": "^5.0.0"
   },
   "dependencies": {
-    "eslint-shared": "workspace:^"
+    "shared": "workspace:^"
   }
 }
