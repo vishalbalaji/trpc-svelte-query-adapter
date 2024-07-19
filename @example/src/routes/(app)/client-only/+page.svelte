@@ -16,7 +16,7 @@
 	const popularTodos = api.todos.getPopular.createInfiniteQuery(
 		{},
 		{
-			getNextPageParam: (data) => data.nextCursor,
+			getNextPageParam: (lastPage) => lastPage.nextCursor,
 		}
 	);
 

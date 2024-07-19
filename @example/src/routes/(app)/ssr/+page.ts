@@ -11,7 +11,7 @@ export async function load(event) {
 		popularTodos: await api.todos.getPopular.createServerInfiniteQuery(
 			{},
 			{
-				getNextPageParam: (data) => data.nextCursor,
+				getNextPageParam: (lastPage) => lastPage.nextCursor,
 			}
 		),
 	};
