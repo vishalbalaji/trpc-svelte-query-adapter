@@ -33,12 +33,32 @@ import {
 	type CreateInfiniteQueryResult,
 	type CreateMutationResult,
 	QueriesResults,
+	StoreOrVal,
 } from '@tanstack/svelte-query';
 
 import { onDestroy } from 'svelte';
-import { Readable } from 'svelte/store';
+import { derived, get, Readable } from 'svelte/store';
 
 type InnerClient = TRPCUntypedClient<AnyRouter>;
+
+export function isSvelteStore<T extends object>(
+	obj: StoreOrVal<T>
+): obj is Readable<T> {
+	return (
+		typeof obj === 'object' &&
+		'subscribe' in obj &&
+		typeof obj.subscribe === 'function'
+	);
+}
+
+const blank = Symbol('blank');
+export const isBlank = (val: unknown) => val === blank;
+export const blankStore: Readable<typeof blank> = {
+	subscribe(run) {
+		run(blank);
+		return () => {};
+	},
+};
 
 // CREDIT: https://stackoverflow.com/a/63448246
 type WithNevers<T, V> = {
@@ -308,8 +328,10 @@ type TRPCQueryOpts = {
 
 type CreateQueryProcedure<TInput = any, TOutput = any, TError = any> = {
 	[Procedure.query]: <TData = TOutput>(
-		input: TInput,
-		opts?: CreateTRPCQueryOptions<TOutput, TError, TData> & TRPCQueryOpts
+		input: StoreOrVal<TInput>,
+		opts?: StoreOrVal<
+			CreateTRPCQueryOptions<TOutput, TError, TData> & TRPCQueryOpts
+		>
 	) => CreateQueryResult<TData, TError>;
 } & {
 	[Procedure.serverQuery]: <TData = TOutput>(
@@ -624,15 +646,42 @@ const procedures: Record<PropertyKey, (ctx: AdapterContext) => any> = {
 	},
 	[Procedure.query]: ({ path, client, abortOnUnmount }) => {
 		return (input: any, opts?: any) => {
-			const shouldAbortOnUnmount = opts?.trpc?.abortOnUnmount ?? abortOnUnmount;
-			return createQuery({
-				...opts,
-				queryKey: getArrayQueryKey(path, input, 'query'),
-				queryFn: ({ signal }) =>
-					client.query(path.join('.'), input, {
-						...(shouldAbortOnUnmount && { signal }),
-					}),
-			});
+			const isOptsStore = isSvelteStore(opts);
+			const isInputStore = isSvelteStore(input);
+
+			if (!isInputStore && !isOptsStore) {
+				const shouldAbortOnUnmount =
+					opts?.trpc?.abortOnUnmount ?? abortOnUnmount;
+				return createQuery({
+					...opts,
+					queryKey: getArrayQueryKey(path, input, 'query'),
+					queryFn: ({ signal }) =>
+						client.query(path.join('.'), input, {
+							...(shouldAbortOnUnmount && { signal }),
+						}),
+				});
+			}
+
+			const currentOpts = isOptsStore ? get(opts) : opts;
+			const shouldAbortOnUnmount =
+				currentOpts?.trpc?.abortOnUnmount ?? abortOnUnmount;
+
+			return createQuery(
+				derived(
+					[isInputStore ? input : blankStore, isOptsStore ? opts : blankStore],
+					([$input, $opts]) => {
+						const newInput = isBlank($input) ? input : $input;
+						return {
+							...(isBlank($opts) ? opts : $opts),
+							queryKey: getArrayQueryKey(path, newInput, 'query'),
+							queryFn: ({ signal }) =>
+								client.query(path.join('.'), newInput, {
+									...(shouldAbortOnUnmount && { signal }),
+								}),
+						} satisfies CreateQueryOptions;
+					}
+				)
+			);
 		};
 	},
 	[Procedure.serverQuery]: ({ path, client, queryClient, abortOnUnmount }) => {

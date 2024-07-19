@@ -5,13 +5,34 @@
 
 	import { page } from '$app/stores';
 	import { trpc } from '$lib/trpc/client';
+	import { writable, derived } from 'svelte/store';
+	import type { InferProcedureOpts } from 'trpc-svelte-query-adapter';
+
+	function debounce<T>(cb: (v: T) => void, durationMs: number) {
+		let timer: ReturnType<typeof setTimeout>;
+		return (v: T) => {
+			clearTimeout(timer);
+			timer = setTimeout(() => cb(v), durationMs);
+		};
+	}
 
 	const api = trpc($page);
 	const utils = api.createUtils();
 
 	let todoInput: HTMLInputElement;
 
-	const todos = api.todos.get.createQuery();
+	const filter = writable<string>();
+	const refetchInterval = writable(Infinity);
+	const todos = api.todos.get.createQuery(
+		filter,
+		derived(
+			refetchInterval,
+			($refetchInterval) =>
+				({
+					refetchInterval: $refetchInterval,
+				}) satisfies InferProcedureOpts<typeof api.todos.get>
+		)
+	);
 
 	const popularTodos = api.todos.getPopular.createInfiniteQuery(
 		{},
@@ -79,6 +100,32 @@
 					{/each}
 				</div>
 			{/if}
+		</form>
+
+		<form action="#" style="margin-top:0.5rem">
+			<!-- eslint-disable-next-line svelte/valid-compile -->
+			<!-- svelte-ignore a11y-no-redundant-roles -->
+			<fieldset role="group">
+				<input
+					type="text"
+					name="filter"
+					placeholder="Filter"
+					on:input|preventDefault={debounce((e) => {
+						if (!(e.target instanceof HTMLInputElement)) return;
+						$filter = e.target.value;
+					}, 500)}
+				/>
+				<input
+					style="width:15ch;"
+					type="number"
+					placeholder="Refetch"
+					value={$refetchInterval}
+					on:input|preventDefault={debounce((e) => {
+						if (!(e.target instanceof HTMLInputElement)) return;
+						$refetchInterval = e.target.value ? +e.target.value : Infinity;
+					}, 500)}
+				/>
+			</fieldset>
 		</form>
 
 		<hr />
