@@ -36,8 +36,14 @@ import {
 	type QueriesResults,
 } from '@tanstack/svelte-query';
 
-import { onDestroy } from 'svelte';
-import { derived, get, type Readable, type Writable } from 'svelte/store';
+import { onDestroy, onMount } from 'svelte';
+import {
+	derived,
+	get,
+	writable,
+	type Readable,
+	type Writable,
+} from 'svelte/store';
 
 type InnerClient = TRPCUntypedClient<AnyRouter>;
 
@@ -340,8 +346,11 @@ type CreateQueryProcedure<TInput = any, TOutput = any, TError = any> = {
 		input: TInput,
 		opts?: CreateTRPCServerQueryOptions<TOutput, TError, TData> & TRPCQueryOpts
 	) => Promise<
-		(
-			...args: [TInput | ((old: TInput) => TInput)] | []
+		<TData = TOutput>(
+			input?: StoreOrVal<TInput> | ((old: TInput) => StoreOrVal<TInput>),
+			opts?: StoreOrVal<
+				CreateTRPCServerQueryOptions<TOutput, TError, TData> & TRPCQueryOpts
+			>
 		) => CreateQueryResult<TData, TError>
 	>;
 } & {};
@@ -689,8 +698,11 @@ const procedures: Record<PropertyKey, (ctx: AdapterContext) => any> = {
 	[Procedure.serverQuery]: ({ path, client, queryClient, abortOnUnmount }) => {
 		const pathString = path.join('.');
 
-		return async (input: any, opts?: any) => {
-			const shouldAbortOnUnmount = opts?.trpc?.abortOnUnmount ?? abortOnUnmount;
+		return async (_input: any, _opts?: any) => {
+			let input = _input;
+			let opts = _opts;
+			let shouldAbortOnUnmount = opts?.trpc?.abortOnUnmount ?? abortOnUnmount;
+
 			const query: FetchQueryOptions = {
 				queryKey: getArrayQueryKey(path, input, 'query'),
 				queryFn: ({ signal }) =>
@@ -707,36 +719,42 @@ const procedures: Record<PropertyKey, (ctx: AdapterContext) => any> = {
 				await queryClient.prefetchQuery(query);
 			}
 
-			const defaultOptions = queryClient.getDefaultOptions();
-
 			return (...args: any[]) => {
-				let newQuery = query;
+				if (args.length > 0) input = args.shift();
+				if (args.length > 0) opts = args.shift();
 
-				if (args.length > 0) {
-					const newInput = args[0];
-					let i = newInput;
-					if (typeof newInput === 'function') i = newInput(input);
-					newQuery = {
-						queryKey: getArrayQueryKey(path, i, 'query'),
-						queryFn: ({ signal }) =>
-							client.query(pathString, i, {
-								...(shouldAbortOnUnmount && { signal }),
-							}),
-					};
-				}
+				const isOptsStore = isSvelteStore(opts);
+				const currentOpts = isOptsStore ? get(opts) : opts;
+				shouldAbortOnUnmount =
+					currentOpts?.trpc?.abortOnUnmount ?? abortOnUnmount;
 
-				return createQuery({
-					...opts,
-					...newQuery,
-					...(cacheNotFound
-						? {
-								refetchOnMount:
-									opts?.refetchOnMount ??
-									defaultOptions.queries?.refetchOnMount ??
-									false,
-							}
-						: {}),
+				const staleTime = writable<number | null>(Infinity);
+				onMount(() => {
+					staleTime.set(null);
 				});
+
+				return createQuery(
+					derived(
+						[
+							isSvelteStore(input) ? input : blankStore,
+							isSvelteStore(opts) ? opts : blankStore,
+							staleTime,
+						],
+						([$input, $opts, $staleTime]) => {
+							const newInput = !isBlank($input) ? $input : input;
+							const newOpts = !isBlank($opts) ? $opts : opts;
+							return {
+								...newOpts,
+								queryKey: getArrayQueryKey(path, newInput, 'query'),
+								queryFn: ({ signal }) =>
+									client.query(pathString, newInput, {
+										...(shouldAbortOnUnmount && { signal }),
+									}),
+								staleTime: $staleTime ?? newOpts?.staleTime,
+							} satisfies CreateQueryOptions;
+						}
+					)
+				);
 			};
 		};
 	},

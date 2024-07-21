@@ -3,25 +3,18 @@
 
 	import { X, Plus } from 'phosphor-svelte';
 
+	import { debounce } from '$lib/utils';
 	import { page } from '$app/stores';
 	import { trpc } from '$lib/trpc/client';
 	import { writable } from 'svelte/store';
 	import type { InferProcedureOpts } from 'trpc-svelte-query-adapter';
-
-	function debounce<T>(cb: (v: T) => void, durationMs: number) {
-		let timer: ReturnType<typeof setTimeout>;
-		return (v: T) => {
-			clearTimeout(timer);
-			timer = setTimeout(() => cb(v), durationMs);
-		};
-	}
 
 	const api = trpc($page);
 	const utils = api.createUtils();
 
 	let todoInput: HTMLInputElement;
 
-	const filter = writable('');
+	const filter = writable<string | undefined>();
 	const opts = writable({
 		refetchInterval: Infinity,
 	} satisfies InferProcedureOpts<typeof api.todos.get.createQuery>);
@@ -103,11 +96,11 @@
 				<input
 					type="text"
 					name="filter"
-					value={$filter}
+					value={$filter ?? ''}
 					placeholder="Filter"
 					on:input|preventDefault={debounce((e) => {
 						if (!(e.target instanceof HTMLInputElement)) return;
-						$filter = e.target.value;
+						$filter = e.target.value || undefined;
 					}, 500)}
 				/>
 				<input
