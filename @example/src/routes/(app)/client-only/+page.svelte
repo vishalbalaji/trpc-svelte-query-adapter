@@ -5,7 +5,7 @@
 
 	import { page } from '$app/stores';
 	import { trpc } from '$lib/trpc/client';
-	import { writable, derived } from 'svelte/store';
+	import { writable } from 'svelte/store';
 	import type { InferProcedureOpts } from 'trpc-svelte-query-adapter';
 
 	function debounce<T>(cb: (v: T) => void, durationMs: number) {
@@ -21,18 +21,12 @@
 
 	let todoInput: HTMLInputElement;
 
-	const filter = writable<string>();
-	const refetchInterval = writable(Infinity);
-	const todos = api.todos.get.createQuery(
-		filter,
-		derived(
-			refetchInterval,
-			($refetchInterval) =>
-				({
-					refetchInterval: $refetchInterval,
-				}) satisfies InferProcedureOpts<typeof api.todos.get>
-		)
-	);
+	const filter = writable('');
+	const opts = writable({
+		refetchInterval: Infinity,
+	} satisfies InferProcedureOpts<typeof api.todos.get.createQuery>);
+
+	const todos = api.todos.get.createQuery(filter);
 
 	const popularTodos = api.todos.getPopular.createInfiniteQuery(
 		{},
@@ -109,6 +103,7 @@
 				<input
 					type="text"
 					name="filter"
+					value={$filter}
 					placeholder="Filter"
 					on:input|preventDefault={debounce((e) => {
 						if (!(e.target instanceof HTMLInputElement)) return;
@@ -119,10 +114,10 @@
 					style="width:15ch;"
 					type="number"
 					placeholder="Refetch"
-					value={$refetchInterval}
+					value={$opts?.refetchInterval}
 					on:input|preventDefault={debounce((e) => {
 						if (!(e.target instanceof HTMLInputElement)) return;
-						$refetchInterval = e.target.value ? +e.target.value : Infinity;
+						$opts.refetchInterval = e.target.value ? +e.target.value : Infinity;
 					}, 500)}
 				/>
 			</fieldset>
