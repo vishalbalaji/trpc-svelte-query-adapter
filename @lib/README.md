@@ -4,7 +4,9 @@
 [![License][license-image]][license-url]
 [![Last commit][last-commit-image]][repo-url]
 
-> **NOTE:** The README on [npmjs](https://npmjs.com/trpc-svelte-query-adapter) might not be fully up to date. Please refer to the [README on the Github Repo](https://github.com/vishalbalaji/trpc-svelte-query-adapter/#readme) for the latest setup instructions.
+> [!NOTE]
+> The README on [npmjs](https://npmjs.com/trpc-svelte-query-adapter) might not be fully up to date. Please refer to
+> the [README on the Github Repo](https://github.com/vishalbalaji/trpc-svelte-query-adapter/#readme) for the latest setup instructions.
 
 This package provides an adapter to call `tRPC` procedures wrapped with <code>[@tanstack/svelte-query](https://tanstack.com/query/latest/docs/svelte/overview)</code>, similar to <code>[@trpc/react-query](https://trpc.io/docs/react-query)</code>. This is made possible using <code>[proxy-deep](https://www.npmjs.com/package/proxy-deep)</code>.
 
@@ -202,7 +204,8 @@ By default, these 3 procedures will pre-fetch the data required to pre-render th
 
 These procedures can be used as such:
 
-> **NOTE:** [Gotta await top-level promises to pre-fetch data from SvelteKit v2](https://kit.svelte.dev/docs/migrating-to-sveltekit-2#top-level-promises-are-no-longer-awaited).
+> [!NOTE] 
+> [Gotta await top-level promises to pre-fetch data from SvelteKit v2](https://kit.svelte.dev/docs/migrating-to-sveltekit-2#top-level-promises-are-no-longer-awaited).
 
 ```typescript
 // +page.ts
