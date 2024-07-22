@@ -12,7 +12,7 @@ This package provides an adapter to call `tRPC` procedures wrapped with <code>[@
 
 ## Installation
 
-```console
+```sh
 # npm
 npm install trpc-svelte-query-adapter @trpc/client @trpc/server @tanstack/svelte-query
 

@@ -87,7 +87,20 @@ type HasMutate = { mutate: (...args: any[]) => any };
 type HasSubscribe = { subscribe: (...args: any[]) => any };
 type OnlyQueries<TClient> = Without<TClient, HasMutate | HasSubscribe>;
 
-// createUtils
+const Procedure = {
+	query: 'createQuery',
+	serverQuery: 'createServerQuery',
+	infiniteQuery: 'createInfiniteQuery',
+	serverInfiniteQuery: 'createServerInfiniteQuery',
+	mutate: 'createMutation',
+	subscribe: 'createSubscription',
+	queryKey: 'getQueryKey',
+	context: 'createContext',
+	utils: 'createUtils',
+	queries: 'createQueries',
+	serverQueries: 'createServerQueries',
+} as const;
+
 const UtilsProcedure = {
 	client: 'client',
 	fetch: 'fetch',
@@ -105,6 +118,7 @@ const UtilsProcedure = {
 	getInfiniteData: 'getInfiniteData',
 } as const;
 
+// createUtils
 type UtilsProcedures<
 	TInput = undefined,
 	TOutput = undefined,
@@ -231,18 +245,31 @@ type AddUtilsPropTypes<TClient, TError> = {
 				Pick<UtilsProcedures, typeof UtilsProcedure.invalidate>;
 };
 
-type CreateUtils<TClient, TError> = AddUtilsPropTypes<
-	OnlyQueries<TClient>,
-	TError
-> &
-	Pick<UtilsProcedures, typeof UtilsProcedure.invalidate> & {
-		[UtilsProcedure.client]: TClient;
-	};
+type CreateUtilsProcedure<TClient, TError> = {
+	/**
+	 * @see https://trpc.io/docs/client/react/useUtils
+	 */
+	[Procedure.utils](): AddUtilsPropTypes<OnlyQueries<TClient>, TError> &
+		Pick<UtilsProcedures, typeof UtilsProcedure.invalidate> & {
+			[UtilsProcedure.client]: TClient;
+		};
+
+	/**
+	 * @deprecated renamed to `createUtils` and will be removed in a future tRPC version
+	 *
+	 * @see https://trpc.io/docs/client/react/useUtils
+	 */
+	[Procedure.context](): AddUtilsPropTypes<OnlyQueries<TClient>, TError> &
+		Pick<UtilsProcedures, typeof UtilsProcedure.invalidate> & {
+			[UtilsProcedure.client]: TClient;
+		};
+} & {};
 
 // createQueries
 type CreateQueriesResult<TOpts extends any[], TCombinedResult> = ReturnType<
 	typeof createQueries<TOpts, TCombinedResult>
 >;
+
 type CreateQueriesOpts<TOpts extends any[], TCombinedResult> = Omit<
 	Parameters<typeof createQueries<TOpts, TCombinedResult>>[0],
 	'queries'
@@ -262,16 +289,6 @@ type CreateQueriesRecord<TClient, TError> = {
 		: CreateQueriesRecord<TClient[K], TError>;
 };
 
-type CreateQueries<TClient, TError> = <
-	TOpts extends CreateQueryOptionsForCreateQueries<any, any, any>[],
-	TCombinedResult = QueriesResults<TOpts>,
->(
-	queriesCallback: (
-		t: CreateQueriesRecord<OnlyQueries<TClient>, TError>
-	) => readonly [...TOpts],
-	opts?: CreateQueriesOpts<TOpts, TCombinedResult>
-) => CreateQueriesResult<TOpts, TCombinedResult>;
-
 // createServerQueries
 type CreateQueryOptionsForCreateServerQueries<TOutput, TError, TData> =
 	CreateQueryOptionsForCreateQueries<TOutput, TError, TData> & {
@@ -287,42 +304,41 @@ type CreateServerQueriesRecord<TClient, TError> = {
 		: CreateQueriesRecord<TClient[K], TError>;
 };
 
-type CreateServerQueries<TClient, TError> = <
-	TOpts extends CreateQueryOptionsForCreateQueries<any, any, any>[],
-	TCombinedResult = QueriesResults<TOpts>,
->(
-	queriesCallback: (
-		t: CreateServerQueriesRecord<OnlyQueries<TClient>, TError>
-	) => readonly [...TOpts],
-	opts?: CreateQueriesOpts<TOpts, TCombinedResult>
-) => Promise<
-	(
-		queriesCallback?: (
-			t: CreateQueriesRecord<OnlyQueries<TClient>, TError>,
-			old: readonly [...TOpts]
-		) => readonly [...TOpts]
-	) => CreateQueriesResult<TOpts, TCombinedResult>
->;
+type CreateQueriesProcedure<TClient = any, TError = any> = {
+	[Procedure.queries]: <
+		TOpts extends CreateQueryOptionsForCreateQueries<any, any, any>[],
+		TCombinedResult = QueriesResults<TOpts>,
+	>(
+		queriesCallback: (
+			t: CreateQueriesRecord<OnlyQueries<TClient>, TError>
+		) => StoreOrVal<readonly [...TOpts]>,
+		opts?: CreateQueriesOpts<TOpts, TCombinedResult>
+	) => CreateQueriesResult<TOpts, TCombinedResult>;
+
+	[Procedure.serverQueries]: <
+		TOpts extends CreateQueryOptionsForCreateQueries<any, any, any>[],
+		TCombinedResult = QueriesResults<TOpts>,
+	>(
+		queriesCallback: (
+			t: CreateServerQueriesRecord<OnlyQueries<TClient>, TError>
+		) => readonly [...TOpts],
+		opts?: CreateQueriesOpts<TOpts, TCombinedResult>
+	) => Promise<
+		(
+			queriesCallback?: (
+				t: CreateQueriesRecord<OnlyQueries<TClient>, TError>,
+				old: readonly [...TOpts]
+			) => readonly [...TOpts]
+		) => CreateQueriesResult<TOpts, TCombinedResult>
+	>;
+} & {};
 
 // Procedures
-const Procedure = {
-	query: 'createQuery',
-	serverQuery: 'createServerQuery',
-	infiniteQuery: 'createInfiniteQuery',
-	serverInfiniteQuery: 'createServerInfiniteQuery',
-	mutate: 'createMutation',
-	subscribe: 'createSubscription',
-	queryKey: 'getQueryKey',
-	context: 'createContext',
-	utils: 'createUtils',
-	queries: 'createQueries',
-	serverQueries: 'createServerQueries',
-} as const;
-
 type CreateTRPCQueryOptions<TOutput, TError, TData = TOutput> = Omit<
 	CreateQueryOptions<TOutput, TError, TData>,
 	'queryKey' | 'queryFn'
 >;
+
 type CreateTRPCServerQueryOptions<TOutput, TError, TData> =
 	CreateTRPCQueryOptions<TOutput, TError, TData> & {
 		ssr?: boolean;
@@ -341,7 +357,7 @@ type CreateQueryProcedure<TInput = any, TOutput = any, TError = any> = {
 			CreateTRPCQueryOptions<TOutput, TError, TData> & TRPCQueryOpts
 		>
 	) => CreateQueryResult<TData, TError>;
-} & {
+
 	[Procedure.serverQuery]: <TData = TOutput>(
 		input: TInput,
 		opts?: CreateTRPCServerQueryOptions<TOutput, TError, TData> & TRPCQueryOpts
@@ -366,6 +382,7 @@ type CreateTRPCInfiniteQueryOptions<TInput, TOutput, TError, TData> = Omit<
 	>,
 	'queryKey' | 'queryFn' | 'initialPageParam'
 >;
+
 type CreateTRPCServerInfiniteQueryOptions<TInput, TOutput, TError, TData> =
 	CreateTRPCInfiniteQueryOptions<TInput, TOutput, TError, TData> & {
 		ssr?: boolean;
@@ -391,6 +408,7 @@ type CreateInfiniteQueryProcedure<TInput = any, TOutput = any, TError = any> = {
 		InfiniteData<TData, NonNullable<ExtractCursorType<TInput>> | null>,
 		TError
 	>;
+
 	[Procedure.serverInfiniteQuery]: <TData = TOutput>(
 		input: Omit<TInput, 'cursor'>,
 		opts: CreateTRPCServerInfiniteQueryOptions<TInput, TOutput, TError, TData> &
@@ -1070,22 +1088,11 @@ export function svelteQueryWrapper<TRouter extends AnyRouter>({
 	const innerClient = client.__untypedClient as InnerClient;
 
 	return new DeepProxy(
+		// prettier-ignore
 		{} as ClientWithQuery &
 			(ClientWithQuery extends Record<any, any>
-				? {
-						/**
-						 * @deprecated renamed to `createUtils` and will be removed in a future tRPC version
-						 *
-						 * @see https://trpc.io/docs/client/react/useUtils
-						 */
-						[Procedure.context](): CreateUtils<Client, RouterError>;
-						/**
-						 * @see https://trpc.io/docs/client/react/useUtils
-						 */
-						[Procedure.utils](): CreateUtils<Client, RouterError>;
-						[Procedure.queries]: CreateQueries<Client, RouterError>;
-						[Procedure.serverQueries]: CreateServerQueries<Client, RouterError>;
-					}
+				? CreateUtilsProcedure<Client, RouterError>
+					& CreateQueriesProcedure<Client, RouterError>
 				: {}),
 		{
 			get(_, key) {
