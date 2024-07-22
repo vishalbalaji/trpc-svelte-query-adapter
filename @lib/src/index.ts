@@ -60,7 +60,7 @@ export function isSvelteStore<T extends object>(
 }
 
 const blank = Symbol('blank');
-export const isBlank = (val: unknown) => val === blank;
+export const isBlank = (val: unknown): val is typeof blank => val === blank;
 export const blankStore: Readable<typeof blank> = {
 	subscribe(run) {
 		run(blank);
@@ -381,10 +381,12 @@ type InfiniteQueryOpts<TInput> = {
 
 type CreateInfiniteQueryProcedure<TInput = any, TOutput = any, TError = any> = {
 	[Procedure.infiniteQuery]: <TData = TOutput>(
-		input: Omit<TInput, 'cursor'>,
-		opts: CreateTRPCInfiniteQueryOptions<TInput, TOutput, TError, TData> &
-			InfiniteQueryOpts<TInput> &
-			TRPCQueryOpts
+		input: StoreOrVal<Omit<TInput, 'cursor'>>,
+		opts: StoreOrVal<
+			CreateTRPCInfiniteQueryOptions<TInput, TOutput, TError, TData> &
+				InfiniteQueryOpts<TInput> &
+				TRPCQueryOpts
+		>
 	) => CreateInfiniteQueryResult<
 		InfiniteData<TData, NonNullable<ExtractCursorType<TInput>> | null>,
 		TError
@@ -395,8 +397,16 @@ type CreateInfiniteQueryProcedure<TInput = any, TOutput = any, TError = any> = {
 			InfiniteQueryOpts<TInput> &
 			TRPCQueryOpts
 	) => Promise<
-		(
-			...args: [TInput | ((old: TInput) => TInput)] | []
+		<TData = TOutput>(
+			input?:
+				| StoreOrVal<Omit<TInput, 'cursor'>>
+				| ((old: Omit<TInput, 'cursor'>) => StoreOrVal<Omit<TInput, 'cursor'>>),
+			opts?: StoreOrVal<
+				CreateTRPCServerInfiniteQueryOptions<TInput, TOutput, TError, TData> &
+					InfiniteQueryOpts<TInput> &
+					TRPCQueryOpts
+			>
+			// ...args: [TInput | ((old: TInput) => TInput)] | []
 		) => CreateInfiniteQueryResult<
 			InfiniteData<TData, NonNullable<ExtractCursorType<TInput>> | null>,
 			TError
@@ -659,6 +669,7 @@ const procedures: Record<PropertyKey, (ctx: AdapterContext) => any> = {
 		return (input: any, opts?: any) => {
 			const isOptsStore = isSvelteStore(opts);
 			const isInputStore = isSvelteStore(input);
+			const currentOpts = isOptsStore ? get(opts) : opts;
 
 			if (!isInputStore && !isOptsStore) {
 				const shouldAbortOnUnmount =
@@ -673,7 +684,6 @@ const procedures: Record<PropertyKey, (ctx: AdapterContext) => any> = {
 				});
 			}
 
-			const currentOpts = isOptsStore ? get(opts) : opts;
 			const shouldAbortOnUnmount =
 				currentOpts?.trpc?.abortOnUnmount ?? abortOnUnmount;
 
@@ -681,9 +691,10 @@ const procedures: Record<PropertyKey, (ctx: AdapterContext) => any> = {
 				derived(
 					[isInputStore ? input : blankStore, isOptsStore ? opts : blankStore],
 					([$input, $opts]) => {
-						const newInput = isBlank($input) ? input : $input;
+						const newInput = !isBlank($input) ? $input : input;
+						const newOpts = !isBlank($opts) ? $opts : opts;
 						return {
-							...(isBlank($opts) ? opts : $opts),
+							...newOpts,
 							queryKey: getArrayQueryKey(path, newInput, 'query'),
 							queryFn: ({ signal }) =>
 								client.query(path.join('.'), newInput, {
@@ -729,15 +740,14 @@ const procedures: Record<PropertyKey, (ctx: AdapterContext) => any> = {
 					currentOpts?.trpc?.abortOnUnmount ?? abortOnUnmount;
 
 				const staleTime = writable<number | null>(Infinity);
-				onMount(() => {
-					staleTime.set(null);
-				});
+				// prettier-ignore
+				onMount(() => { staleTime.set(null); });
 
 				return createQuery(
 					derived(
 						[
 							isSvelteStore(input) ? input : blankStore,
-							isSvelteStore(opts) ? opts : blankStore,
+							isOptsStore ? opts : blankStore,
 							staleTime,
 						],
 						([$input, $opts, $staleTime]) => {
@@ -760,18 +770,50 @@ const procedures: Record<PropertyKey, (ctx: AdapterContext) => any> = {
 	},
 	[Procedure.infiniteQuery]: ({ path, client, abortOnUnmount }) => {
 		return (input: any, opts?: any) => {
-			const shouldAbortOnUnmount = opts?.trpc?.abortOnUnmount ?? abortOnUnmount;
-			return createInfiniteQuery({
-				...opts,
-				initialPageParam: opts.initialCursor ?? null,
-				queryKey: getArrayQueryKey(path, input, 'infinite'),
-				queryFn: ({ pageParam, signal }) =>
-					client.query(
-						path.join('.'),
-						{ ...input, cursor: pageParam ?? opts?.initialCursor },
-						{ ...(shouldAbortOnUnmount && { signal }) }
-					),
-			});
+			const isOptsStore = isSvelteStore(opts);
+			const isInputStore = isSvelteStore(input);
+			const currentOpts = isOptsStore ? get(opts) : opts;
+
+			if (!isInputStore && !isOptsStore) {
+				const shouldAbortOnUnmount =
+					opts?.trpc?.abortOnUnmount ?? abortOnUnmount;
+
+				return createInfiniteQuery({
+					...opts,
+					initialPageParam: opts?.initialCursor ?? null,
+					queryKey: getArrayQueryKey(path, input, 'infinite'),
+					queryFn: ({ pageParam, signal }) =>
+						client.query(
+							path.join('.'),
+							{ ...input, cursor: pageParam ?? opts?.initialCursor },
+							{ ...(shouldAbortOnUnmount && { signal }) }
+						),
+				} satisfies CreateInfiniteQueryOptions);
+			}
+
+			const shouldAbortOnUnmount =
+				currentOpts?.trpc?.abortOnUnmount ?? abortOnUnmount;
+
+			return createInfiniteQuery(
+				derived(
+					[isInputStore ? input : blankStore, isOptsStore ? opts : blankStore],
+					([$input, $opts]) => {
+						const newInput = !isBlank($input) ? $input : input;
+						const newOpts = !isBlank($opts) ? $opts : opts;
+
+						return {
+							...newOpts,
+							queryKey: getArrayQueryKey(path, newInput, 'infinite'),
+							queryFn: ({ pageParam, signal }) =>
+								client.query(
+									path.join('.'),
+									{ ...newInput, cursor: pageParam ?? newOpts?.initialCursor },
+									{ ...(shouldAbortOnUnmount && { signal }) }
+								),
+						} satisfies CreateInfiniteQueryOptions;
+					}
+				)
+			);
 		};
 	},
 	[Procedure.serverInfiniteQuery]: ({
@@ -782,8 +824,11 @@ const procedures: Record<PropertyKey, (ctx: AdapterContext) => any> = {
 	}) => {
 		const pathString = path.join('.');
 
-		return async (input: any, opts?: any) => {
-			const shouldAbortOnUnmount = opts?.trpc?.abortOnUnmount ?? abortOnUnmount;
+		return async (_input: any, _opts?: any) => {
+			let input = _input;
+			let opts = _opts;
+			let shouldAbortOnUnmount = opts?.trpc?.abortOnUnmount ?? abortOnUnmount;
+
 			const query: Omit<FetchInfiniteQueryOptions, 'initialPageParam'> = {
 				queryKey: getArrayQueryKey(path, input, 'infinite'),
 				queryFn: ({ pageParam, signal }) =>
@@ -803,38 +848,47 @@ const procedures: Record<PropertyKey, (ctx: AdapterContext) => any> = {
 			}
 
 			return (...args: any[]) => {
-				let newQuery = query;
+				if (args.length > 0) input = args.shift();
+				if (args.length > 0) opts = args.shift();
 
-				if (args.length > 0) {
-					const newInput = args[0];
-					let i = newInput;
-					if (typeof newInput === 'function') i = newInput(input);
-					newQuery = {
-						queryKey: getArrayQueryKey(path, i, 'infinite'),
-						queryFn: ({ pageParam, signal }) =>
-							client.query(
-								pathString,
-								{ ...i, cursor: pageParam ?? opts?.initialCursor },
-								{ ...(shouldAbortOnUnmount && { signal }) }
-							),
-					};
-				}
+				const isOptsStore = isSvelteStore(opts);
+				const currentOpts = isOptsStore ? get(opts) : opts;
+				shouldAbortOnUnmount =
+					currentOpts?.trpc?.abortOnUnmount ?? abortOnUnmount;
 
-				const defaultOptions = queryClient.getDefaultOptions();
+				const staleTime = writable<number | null>(Infinity);
+				// prettier-ignore
+				onMount(() => { staleTime.set(null); });
 
-				return createInfiniteQuery({
-					...opts,
-					initialPageParam: opts.initialCursor ?? null,
-					...newQuery,
-					...(cacheNotFound
-						? {
-								refetchOnMount:
-									opts?.refetchOnMount ??
-									defaultOptions.queries?.refetchOnMount ??
-									false,
-							}
-						: {}),
-				});
+				return createInfiniteQuery(
+					derived(
+						[
+							isSvelteStore(input) ? input : blankStore,
+							isOptsStore ? opts : blankStore,
+							staleTime,
+						],
+						([$input, $opts, $staleTime]) => {
+							const newInput = !isBlank($input) ? $input : input;
+							const newOpts = !isBlank($opts) ? $opts : opts;
+
+							return {
+								...newOpts,
+								initialPageParam: newOpts?.initialCursor,
+								queryKey: getArrayQueryKey(path, newInput, 'infinite'),
+								queryFn: ({ pageParam, signal }) =>
+									client.query(
+										pathString,
+										{
+											...newInput,
+											cursor: pageParam ?? newOpts?.initialCursor,
+										},
+										{ ...(shouldAbortOnUnmount && { signal }) }
+									),
+								staleTime: $staleTime ?? newOpts?.staleTime,
+							} satisfies CreateInfiniteQueryOptions;
+						}
+					)
+				);
 			};
 		};
 	},
