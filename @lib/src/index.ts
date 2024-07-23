@@ -33,7 +33,7 @@ import {
 	type CreateInfiniteQueryResult,
 	type CreateMutationResult,
 	type StoreOrVal as _StoreOrVal,
-	type QueriesResults,
+	type QueryObserverResult,
 } from '@tanstack/svelte-query';
 
 import { onDestroy, onMount } from 'svelte';
@@ -266,17 +266,32 @@ type CreateUtilsProcedure<TClient, TError> = {
 } & {};
 
 // createQueries
-type CreateQueriesResult<TOpts extends any[], TCombinedResult> = ReturnType<
-	typeof createQueries<TOpts, TCombinedResult>
->;
+// REFER: https://github.com/trpc/trpc/blob/936db6dd2598337758e29c843ff66984ed54faaf/packages/react-query/src/internals/useQueries.ts#L33
+type QueriesResults<
+	TQueriesOptions extends CreateQueryOptionsForCreateQueries<
+		any,
+		any,
+		any,
+		any
+	>[],
+> = {
+	[TKey in keyof TQueriesOptions]: TQueriesOptions[TKey] extends CreateQueryOptionsForCreateQueries<
+		infer TQueryFnData,
+		infer TError,
+		infer TData,
+		any
+	>
+		? QueryObserverResult<unknown extends TData ? TQueryFnData : TData, TError>
+		: never;
+};
 
-type CreateQueriesOpts<TOpts extends any[], TCombinedResult> = Omit<
-	Parameters<typeof createQueries<TOpts, TCombinedResult>>[0],
-	'queries'
->;
-
-type CreateQueryOptionsForCreateQueries<TOutput, TError, TData> = Omit<
-	CreateQueryOptions<TOutput, TError, TData>,
+type CreateQueryOptionsForCreateQueries<
+	TOutput = unknown,
+	TError = unknown,
+	TData = unknown,
+	TQueryKey extends QueryKey = QueryKey,
+> = Omit<
+	CreateQueryOptions<TOutput, TError, TData, TQueryKey>,
 	'context' | 'queryKey' | 'queryFn'
 >;
 
@@ -287,6 +302,13 @@ type CreateQueriesRecord<TClient, TError> = {
 				opts?: CreateQueryOptionsForCreateQueries<TOutput, TError, TData>
 			) => CreateQueryOptionsForCreateQueries<TOutput, TError, TData>
 		: CreateQueriesRecord<TClient[K], TError>;
+};
+
+type CreateQueriesOpts<
+	TOpts extends CreateQueryOptionsForCreateQueries[],
+	TCombinedResult,
+> = {
+	combine?: (result: QueriesResults<TOpts>) => TCombinedResult;
 };
 
 // createServerQueries
@@ -304,6 +326,38 @@ type CreateServerQueriesRecord<TClient, TError> = {
 		: CreateQueriesRecord<TClient[K], TError>;
 };
 
+// REFER: https://github.com/trpc/trpc/blob/936db6dd2598337758e29c843ff66984ed54faaf/packages/react-query/src/internals/useQueries.ts#L46
+type GetOptions<TQueryOptions> =
+	TQueryOptions extends CreateQueryOptionsForCreateQueries<any, any, any, any>
+		? TQueryOptions
+		: never;
+
+// REFER: https://github.com/trpc/trpc/blob/936db6dd2598337758e29c843ff66984ed54faaf/packages/react-query/src/internals/useQueries.ts#L54
+type QueriesOptions<
+	TQueriesOptions extends any[],
+	TResult extends any[] = [],
+> = TQueriesOptions extends []
+	? []
+	: TQueriesOptions extends [infer Head]
+		? [...TResult, GetOptions<Head>]
+		: TQueriesOptions extends [infer Head, ...infer Tail]
+			? QueriesOptions<Tail, [...TResult, GetOptions<Head>]>
+			: unknown[] extends TQueriesOptions
+				? TQueriesOptions
+				: TQueriesOptions extends CreateQueryOptionsForCreateQueries<
+							infer TQueryFnData,
+							infer TError,
+							infer TData,
+							infer TQueryKey
+					  >[]
+					? CreateQueryOptionsForCreateQueries<
+							TQueryFnData,
+							TError,
+							TData,
+							TQueryKey
+						>[]
+					: CreateQueryOptionsForCreateQueries[];
+
 type CreateQueriesProcedure<TClient = any, TError = any> = {
 	[Procedure.queries]: <
 		TOpts extends CreateQueryOptionsForCreateQueries<any, any, any>[],
@@ -311,9 +365,9 @@ type CreateQueriesProcedure<TClient = any, TError = any> = {
 	>(
 		queriesCallback: (
 			t: CreateQueriesRecord<OnlyQueries<TClient>, TError>
-		) => StoreOrVal<readonly [...TOpts]>,
+		) => readonly [...QueriesOptions<TOpts>],
 		opts?: CreateQueriesOpts<TOpts, TCombinedResult>
-	) => CreateQueriesResult<TOpts, TCombinedResult>;
+	) => Readable<TCombinedResult>;
 
 	[Procedure.serverQueries]: <
 		TOpts extends CreateQueryOptionsForCreateQueries<any, any, any>[],
@@ -321,7 +375,7 @@ type CreateQueriesProcedure<TClient = any, TError = any> = {
 	>(
 		queriesCallback: (
 			t: CreateServerQueriesRecord<OnlyQueries<TClient>, TError>
-		) => readonly [...TOpts],
+		) => readonly [...QueriesOptions<TOpts>],
 		opts?: CreateQueriesOpts<TOpts, TCombinedResult>
 	) => Promise<
 		(
@@ -329,7 +383,7 @@ type CreateQueriesProcedure<TClient = any, TError = any> = {
 				t: CreateQueriesRecord<OnlyQueries<TClient>, TError>,
 				old: readonly [...TOpts]
 			) => readonly [...TOpts]
-		) => CreateQueriesResult<TOpts, TCombinedResult>
+		) => Readable<TCombinedResult>
 	>;
 } & {};
 
