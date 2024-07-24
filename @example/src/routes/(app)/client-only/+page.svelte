@@ -19,7 +19,7 @@
 		refetchInterval: Infinity,
 	} satisfies InferProcedureOpts<typeof api.todos.get.createQuery>);
 
-	const todos = api.todos.get.createQuery(filter);
+	const todos = api.todos.get.createQuery(filter, opts);
 
 	const popularTodos = api.todos.getPopular.createInfiniteQuery(
 		{},

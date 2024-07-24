@@ -34,6 +34,10 @@ import {
 	type CreateMutationResult,
 	type StoreOrVal as _StoreOrVal,
 	type QueryObserverResult,
+	type QueryObserverOptions,
+	type DefaultError,
+	type OmitKeyof,
+	type QueriesPlaceholderDataFunction,
 } from '@tanstack/svelte-query';
 
 import { onDestroy, onMount } from 'svelte';
@@ -285,15 +289,28 @@ type QueriesResults<
 		: never;
 };
 
+type QueryObserverOptionsForCreateQueries<
+	TQueryFnData = unknown,
+	TError = DefaultError,
+	TData = TQueryFnData,
+	TQueryKey extends QueryKey = QueryKey,
+> = OmitKeyof<
+	QueryObserverOptions<TQueryFnData, TError, TData, TQueryFnData, TQueryKey>,
+	'placeholderData'
+> & {
+	placeholderData?: TQueryFnData | QueriesPlaceholderDataFunction<TQueryFnData>;
+};
+
 type CreateQueryOptionsForCreateQueries<
 	TOutput = unknown,
 	TError = unknown,
 	TData = unknown,
 	TQueryKey extends QueryKey = QueryKey,
 > = Omit<
-	CreateQueryOptions<TOutput, TError, TData, TQueryKey>,
+	QueryObserverOptionsForCreateQueries<TOutput, TError, TData, TQueryKey>,
 	'context' | 'queryKey' | 'queryFn'
->;
+> &
+	TRPCQueryOpts;
 
 type CreateQueriesRecord<TClient, TError> = {
 	[K in keyof TClient]: TClient[K] extends HasQuery
@@ -312,10 +329,14 @@ type CreateQueriesOpts<
 };
 
 // createServerQueries
-type CreateQueryOptionsForCreateServerQueries<TOutput, TError, TData> =
-	CreateQueryOptionsForCreateQueries<TOutput, TError, TData> & {
-		ssr?: boolean;
-	};
+type CreateQueryOptionsForCreateServerQueries<
+	TOutput = unknown,
+	TError = unknown,
+	TData = unknown,
+	TQueryKey extends QueryKey = QueryKey,
+> = CreateQueryOptionsForCreateQueries<TOutput, TError, TData, TQueryKey> & {
+	ssr?: boolean;
+};
 
 type CreateServerQueriesRecord<TClient, TError> = {
 	[K in keyof TClient]: TClient[K] extends HasQuery
@@ -323,66 +344,40 @@ type CreateServerQueriesRecord<TClient, TError> = {
 				input: Parameters<TClient[K]['query']>[0],
 				opts?: CreateQueryOptionsForCreateServerQueries<TOutput, TError, TData>
 			) => CreateQueryOptionsForCreateServerQueries<TOutput, TError, TData>
-		: CreateQueriesRecord<TClient[K], TError>;
+		: CreateServerQueriesRecord<TClient[K], TError>;
 };
-
-// REFER: https://github.com/trpc/trpc/blob/936db6dd2598337758e29c843ff66984ed54faaf/packages/react-query/src/internals/useQueries.ts#L46
-type GetOptions<TQueryOptions> =
-	TQueryOptions extends CreateQueryOptionsForCreateQueries<any, any, any, any>
-		? TQueryOptions
-		: never;
-
-// REFER: https://github.com/trpc/trpc/blob/936db6dd2598337758e29c843ff66984ed54faaf/packages/react-query/src/internals/useQueries.ts#L54
-type QueriesOptions<
-	TQueriesOptions extends any[],
-	TResult extends any[] = [],
-> = TQueriesOptions extends []
-	? []
-	: TQueriesOptions extends [infer Head]
-		? [...TResult, GetOptions<Head>]
-		: TQueriesOptions extends [infer Head, ...infer Tail]
-			? QueriesOptions<Tail, [...TResult, GetOptions<Head>]>
-			: unknown[] extends TQueriesOptions
-				? TQueriesOptions
-				: TQueriesOptions extends CreateQueryOptionsForCreateQueries<
-							infer TQueryFnData,
-							infer TError,
-							infer TData,
-							infer TQueryKey
-					  >[]
-					? CreateQueryOptionsForCreateQueries<
-							TQueryFnData,
-							TError,
-							TData,
-							TQueryKey
-						>[]
-					: CreateQueryOptionsForCreateQueries[];
 
 type CreateQueriesProcedure<TClient = any, TError = any> = {
 	[Procedure.queries]: <
-		TOpts extends CreateQueryOptionsForCreateQueries<any, any, any>[],
+		TOpts extends CreateQueryOptionsForCreateQueries<any, any, any, any>[],
 		TCombinedResult = QueriesResults<TOpts>,
 	>(
 		queriesCallback: (
 			t: CreateQueriesRecord<OnlyQueries<TClient>, TError>
-		) => readonly [...QueriesOptions<TOpts>],
+		) => StoreOrVal<readonly [...TOpts]>,
 		opts?: CreateQueriesOpts<TOpts, TCombinedResult>
 	) => Readable<TCombinedResult>;
 
 	[Procedure.serverQueries]: <
-		TOpts extends CreateQueryOptionsForCreateQueries<any, any, any>[],
+		TOpts extends CreateQueryOptionsForCreateServerQueries<
+			any,
+			any,
+			any,
+			any
+		>[],
 		TCombinedResult = QueriesResults<TOpts>,
 	>(
 		queriesCallback: (
 			t: CreateServerQueriesRecord<OnlyQueries<TClient>, TError>
-		) => readonly [...QueriesOptions<TOpts>],
+		) => readonly [...TOpts],
 		opts?: CreateQueriesOpts<TOpts, TCombinedResult>
 	) => Promise<
 		(
 			queriesCallback?: (
-				t: CreateQueriesRecord<OnlyQueries<TClient>, TError>,
+				t: CreateServerQueriesRecord<OnlyQueries<TClient>, TError>,
 				old: readonly [...TOpts]
-			) => readonly [...TOpts]
+			) => StoreOrVal<readonly [...TOpts]>,
+			opts?: CreateQueriesOpts<TOpts, TCombinedResult>
 		) => Readable<TCombinedResult>
 	>;
 } & {};
@@ -812,8 +807,7 @@ const procedures: Record<PropertyKey, (ctx: AdapterContext) => any> = {
 					currentOpts?.trpc?.abortOnUnmount ?? abortOnUnmount;
 
 				const staleTime = writable<number | null>(Infinity);
-				// prettier-ignore
-				onMount(() => { staleTime.set(null); });
+				onMount(() => { staleTime.set(null); }); // prettier-ignore
 
 				return createQuery(
 					derived(
@@ -832,7 +826,7 @@ const procedures: Record<PropertyKey, (ctx: AdapterContext) => any> = {
 									client.query(pathString, newInput, {
 										...(shouldAbortOnUnmount && { signal }),
 									}),
-								staleTime: $staleTime ?? newOpts?.staleTime,
+								...($staleTime && { staleTime: $staleTime }),
 							} satisfies CreateQueryOptions;
 						}
 					)
@@ -929,8 +923,7 @@ const procedures: Record<PropertyKey, (ctx: AdapterContext) => any> = {
 					currentOpts?.trpc?.abortOnUnmount ?? abortOnUnmount;
 
 				const staleTime = writable<number | null>(Infinity);
-				// prettier-ignore
-				onMount(() => { staleTime.set(null); });
+				onMount(() => { staleTime.set(null); }); // prettier-ignore
 
 				return createInfiniteQuery(
 					derived(
@@ -956,7 +949,7 @@ const procedures: Record<PropertyKey, (ctx: AdapterContext) => any> = {
 										},
 										{ ...(shouldAbortOnUnmount && { signal }) }
 									),
-								staleTime: $staleTime ?? newOpts?.staleTime,
+								...($staleTime && { staleTime: $staleTime }),
 							} satisfies CreateInfiniteQueryOptions;
 						}
 					)
@@ -1011,11 +1004,15 @@ const procedures: Record<PropertyKey, (ctx: AdapterContext) => any> = {
 		if (path.length !== 0) return;
 		const proxy = createQueriesProxy(ctx);
 
-		const defaultOptions = queryClient.getDefaultOptions();
+		return async (
+			input: (...args: any[]) => QueryObserverOptionsForCreateQueries[],
+			_opts?: any
+		) => {
+			let opts = _opts;
 
-		return async (input: (...args: any[]) => any, opts?: any) => {
-			const queries = await Promise.all(
-				input(proxy).map(async (query: any) => {
+			let queries = input(proxy);
+			await Promise.all(
+				queries.map(async (query: any) => {
 					const cache = queryClient
 						.getQueryCache()
 						.find({ queryKey: query.queryKey });
@@ -1024,27 +1021,29 @@ const procedures: Record<PropertyKey, (ctx: AdapterContext) => any> = {
 					if (query.ssr !== false && cacheNotFound) {
 						await queryClient.prefetchQuery(query);
 					}
-
-					return {
-						...query,
-						...(cacheNotFound
-							? {
-									refetchOnMount:
-										query.refetchOnMount ??
-										defaultOptions.queries?.refetchOnMount ??
-										false,
-								}
-							: {}),
-					};
 				})
 			);
 
-			return (newInput?: (...args: any[]) => any) => {
-				let newQueries = queries;
-				if (newInput) newQueries = newInput(proxy, queries);
+			return (...args: any[]) => {
+				if (args.length > 0) queries = args.shift()!(proxy, queries);
+				if (args.length > 0) opts = args.shift();
+
+				const staleTime = writable<number | null>(Infinity);
+				onMount(() => { staleTime.set(null); }); // prettier-ignore
+
 				return createQueries({
 					...opts,
-					queries: newQueries,
+					queries: derived(
+						[isSvelteStore(queries) ? queries : blankStore, staleTime],
+						([$queries, $staleTime]) => {
+							const newQueries = !isBlank($queries) ? $queries : queries;
+							if (!staleTime) return newQueries;
+							return newQueries.map((query) => ({
+								...query,
+								...($staleTime && { staleTime: $staleTime }),
+							}));
+						}
+					),
 				});
 			};
 		};
