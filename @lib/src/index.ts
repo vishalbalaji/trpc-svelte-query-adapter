@@ -1,8 +1,8 @@
 import DeepProxy from 'proxy-deep';
 
-import {
-	type TRPCClientErrorLike,
-	type CreateTRPCProxyClient,
+import type {
+	TRPCClientErrorLike,
+	CreateTRPCProxyClient,
 	TRPCUntypedClient,
 } from '@trpc/client';
 import type { AnyRouter } from '@trpc/server';
@@ -32,12 +32,45 @@ import {
 	type CreateQueryResult,
 	type CreateInfiniteQueryResult,
 	type CreateMutationResult,
-	QueriesResults,
+	type StoreOrVal as _StoreOrVal,
+	type QueryObserverResult,
+	type QueryObserverOptions,
+	type DefaultError,
+	type OmitKeyof,
+	type QueriesPlaceholderDataFunction,
 } from '@tanstack/svelte-query';
 
-import { onDestroy } from 'svelte';
+import { onDestroy, onMount } from 'svelte';
+import {
+	derived,
+	get,
+	writable,
+	type Readable,
+	type Writable,
+} from 'svelte/store';
 
 type InnerClient = TRPCUntypedClient<AnyRouter>;
+
+type StoreOrVal<T> = _StoreOrVal<T> | Writable<T>;
+
+export function isSvelteStore<T extends object>(
+	obj: StoreOrVal<T>
+): obj is Readable<T> {
+	return (
+		typeof obj === 'object' &&
+		'subscribe' in obj &&
+		typeof obj.subscribe === 'function'
+	);
+}
+
+const blank = Symbol('blank');
+export const isBlank = (val: unknown): val is typeof blank => val === blank;
+export const blankStore: Readable<typeof blank> = {
+	subscribe(run) {
+		run(blank);
+		return () => {};
+	},
+};
 
 // CREDIT: https://stackoverflow.com/a/63448246
 type WithNevers<T, V> = {
@@ -58,7 +91,20 @@ type HasMutate = { mutate: (...args: any[]) => any };
 type HasSubscribe = { subscribe: (...args: any[]) => any };
 type OnlyQueries<TClient> = Without<TClient, HasMutate | HasSubscribe>;
 
-// createUtils
+const Procedure = {
+	query: 'createQuery',
+	serverQuery: 'createServerQuery',
+	infiniteQuery: 'createInfiniteQuery',
+	serverInfiniteQuery: 'createServerInfiniteQuery',
+	mutate: 'createMutation',
+	subscribe: 'createSubscription',
+	queryKey: 'getQueryKey',
+	context: 'createContext',
+	utils: 'createUtils',
+	queries: 'createQueries',
+	serverQueries: 'createServerQueries',
+} as const;
+
 const UtilsProcedure = {
 	client: 'client',
 	fetch: 'fetch',
@@ -76,6 +122,7 @@ const UtilsProcedure = {
 	getInfiniteData: 'getInfiniteData',
 } as const;
 
+// createUtils
 type UtilsProcedures<
 	TInput = undefined,
 	TOutput = undefined,
@@ -202,27 +249,68 @@ type AddUtilsPropTypes<TClient, TError> = {
 				Pick<UtilsProcedures, typeof UtilsProcedure.invalidate>;
 };
 
-type CreateUtils<TClient, TError> = AddUtilsPropTypes<
-	OnlyQueries<TClient>,
-	TError
-> &
-	Pick<UtilsProcedures, typeof UtilsProcedure.invalidate> & {
-		[UtilsProcedure.client]: TClient;
-	};
+type CreateUtilsProcedure<TClient, TError> = {
+	/**
+	 * @see https://trpc.io/docs/client/react/useUtils
+	 */
+	[Procedure.utils](): AddUtilsPropTypes<OnlyQueries<TClient>, TError> &
+		Pick<UtilsProcedures, typeof UtilsProcedure.invalidate> & {
+			[UtilsProcedure.client]: TClient;
+		};
+
+	/**
+	 * @deprecated renamed to `createUtils` and will be removed in a future tRPC version
+	 *
+	 * @see https://trpc.io/docs/client/react/useUtils
+	 */
+	[Procedure.context](): AddUtilsPropTypes<OnlyQueries<TClient>, TError> &
+		Pick<UtilsProcedures, typeof UtilsProcedure.invalidate> & {
+			[UtilsProcedure.client]: TClient;
+		};
+} & {};
 
 // createQueries
-type CreateQueriesResult<TOpts extends any[], TCombinedResult> = ReturnType<
-	typeof createQueries<TOpts, TCombinedResult>
->;
-type CreateQueriesOpts<TOpts extends any[], TCombinedResult> = Omit<
-	Parameters<typeof createQueries<TOpts, TCombinedResult>>[0],
-	'queries'
->;
+// REFER: https://github.com/trpc/trpc/blob/936db6dd2598337758e29c843ff66984ed54faaf/packages/react-query/src/internals/useQueries.ts#L33
+type QueriesResults<
+	TQueriesOptions extends CreateQueryOptionsForCreateQueries<
+		any,
+		any,
+		any,
+		any
+	>[],
+> = {
+	[TKey in keyof TQueriesOptions]: TQueriesOptions[TKey] extends CreateQueryOptionsForCreateQueries<
+		infer TQueryFnData,
+		infer TError,
+		infer TData,
+		any
+	>
+		? QueryObserverResult<unknown extends TData ? TQueryFnData : TData, TError>
+		: never;
+};
 
-type CreateQueryOptionsForCreateQueries<TOutput, TError, TData> = Omit<
-	CreateQueryOptions<TOutput, TError, TData>,
+type QueryObserverOptionsForCreateQueries<
+	TQueryFnData = unknown,
+	TError = DefaultError,
+	TData = TQueryFnData,
+	TQueryKey extends QueryKey = QueryKey,
+> = OmitKeyof<
+	QueryObserverOptions<TQueryFnData, TError, TData, TQueryFnData, TQueryKey>,
+	'placeholderData'
+> & {
+	placeholderData?: TQueryFnData | QueriesPlaceholderDataFunction<TQueryFnData>;
+};
+
+type CreateQueryOptionsForCreateQueries<
+	TOutput = unknown,
+	TError = unknown,
+	TData = unknown,
+	TQueryKey extends QueryKey = QueryKey,
+> = Omit<
+	QueryObserverOptionsForCreateQueries<TOutput, TError, TData, TQueryKey>,
 	'context' | 'queryKey' | 'queryFn'
->;
+> &
+	TRPCQueryOpts;
 
 type CreateQueriesRecord<TClient, TError> = {
 	[K in keyof TClient]: TClient[K] extends HasQuery
@@ -233,21 +321,22 @@ type CreateQueriesRecord<TClient, TError> = {
 		: CreateQueriesRecord<TClient[K], TError>;
 };
 
-type CreateQueries<TClient, TError> = <
-	TOpts extends CreateQueryOptionsForCreateQueries<any, any, any>[],
-	TCombinedResult = QueriesResults<TOpts>,
->(
-	queriesCallback: (
-		t: CreateQueriesRecord<OnlyQueries<TClient>, TError>
-	) => readonly [...TOpts],
-	opts?: CreateQueriesOpts<TOpts, TCombinedResult>
-) => CreateQueriesResult<TOpts, TCombinedResult>;
+type CreateQueriesOpts<
+	TOpts extends CreateQueryOptionsForCreateQueries[],
+	TCombinedResult,
+> = {
+	combine?: (result: QueriesResults<TOpts>) => TCombinedResult;
+};
 
 // createServerQueries
-type CreateQueryOptionsForCreateServerQueries<TOutput, TError, TData> =
-	CreateQueryOptionsForCreateQueries<TOutput, TError, TData> & {
-		ssr?: boolean;
-	};
+type CreateQueryOptionsForCreateServerQueries<
+	TOutput = unknown,
+	TError = unknown,
+	TData = unknown,
+	TQueryKey extends QueryKey = QueryKey,
+> = CreateQueryOptionsForCreateQueries<TOutput, TError, TData, TQueryKey> & {
+	ssr?: boolean;
+};
 
 type CreateServerQueriesRecord<TClient, TError> = {
 	[K in keyof TClient]: TClient[K] extends HasQuery
@@ -255,45 +344,50 @@ type CreateServerQueriesRecord<TClient, TError> = {
 				input: Parameters<TClient[K]['query']>[0],
 				opts?: CreateQueryOptionsForCreateServerQueries<TOutput, TError, TData>
 			) => CreateQueryOptionsForCreateServerQueries<TOutput, TError, TData>
-		: CreateQueriesRecord<TClient[K], TError>;
+		: CreateServerQueriesRecord<TClient[K], TError>;
 };
 
-type CreateServerQueries<TClient, TError> = <
-	TOpts extends CreateQueryOptionsForCreateQueries<any, any, any>[],
-	TCombinedResult = QueriesResults<TOpts>,
->(
-	queriesCallback: (
-		t: CreateServerQueriesRecord<OnlyQueries<TClient>, TError>
-	) => readonly [...TOpts],
-	opts?: CreateQueriesOpts<TOpts, TCombinedResult>
-) => Promise<
-	(
-		queriesCallback?: (
-			t: CreateQueriesRecord<OnlyQueries<TClient>, TError>,
-			old: readonly [...TOpts]
-		) => readonly [...TOpts]
-	) => CreateQueriesResult<TOpts, TCombinedResult>
->;
+type CreateQueriesProcedure<TClient = any, TError = any> = {
+	[Procedure.queries]: <
+		TOpts extends CreateQueryOptionsForCreateQueries<any, any, any, any>[],
+		TCombinedResult = QueriesResults<TOpts>,
+	>(
+		queriesCallback: (
+			t: CreateQueriesRecord<OnlyQueries<TClient>, TError>
+		) => StoreOrVal<readonly [...TOpts]>,
+		opts?: CreateQueriesOpts<TOpts, TCombinedResult>
+	) => Readable<TCombinedResult>;
+
+	[Procedure.serverQueries]: <
+		TOpts extends CreateQueryOptionsForCreateServerQueries<
+			any,
+			any,
+			any,
+			any
+		>[],
+		TCombinedResult = QueriesResults<TOpts>,
+	>(
+		queriesCallback: (
+			t: CreateServerQueriesRecord<OnlyQueries<TClient>, TError>
+		) => readonly [...TOpts],
+		opts?: CreateQueriesOpts<TOpts, TCombinedResult>
+	) => Promise<
+		(
+			queriesCallback?: (
+				t: CreateServerQueriesRecord<OnlyQueries<TClient>, TError>,
+				old: readonly [...TOpts]
+			) => StoreOrVal<readonly [...TOpts]>,
+			opts?: CreateQueriesOpts<TOpts, TCombinedResult>
+		) => Readable<TCombinedResult>
+	>;
+} & {};
 
 // Procedures
-const Procedure = {
-	query: 'createQuery',
-	serverQuery: 'createServerQuery',
-	infiniteQuery: 'createInfiniteQuery',
-	serverInfiniteQuery: 'createServerInfiniteQuery',
-	mutate: 'createMutation',
-	subscribe: 'createSubscription',
-	queryKey: 'getQueryKey',
-	context: 'createContext',
-	utils: 'createUtils',
-	queries: 'createQueries',
-	serverQueries: 'createServerQueries',
-} as const;
-
-type CreateTRPCQueryOptions<TOutput, TError, TData> = Omit<
+type CreateTRPCQueryOptions<TOutput, TError, TData = TOutput> = Omit<
 	CreateQueryOptions<TOutput, TError, TData>,
 	'queryKey' | 'queryFn'
 >;
+
 type CreateTRPCServerQueryOptions<TOutput, TError, TData> =
 	CreateTRPCQueryOptions<TOutput, TError, TData> & {
 		ssr?: boolean;
@@ -305,18 +399,23 @@ type TRPCQueryOpts = {
 	};
 };
 
-type CreateQueryProcedure<TInput, TOutput, TError> = {
+type CreateQueryProcedure<TInput = any, TOutput = any, TError = any> = {
 	[Procedure.query]: <TData = TOutput>(
-		input: TInput,
-		opts?: CreateTRPCQueryOptions<TOutput, TError, TData> & TRPCQueryOpts
+		input: StoreOrVal<TInput>,
+		opts?: StoreOrVal<
+			CreateTRPCQueryOptions<TOutput, TError, TData> & TRPCQueryOpts
+		>
 	) => CreateQueryResult<TData, TError>;
-} & {
+
 	[Procedure.serverQuery]: <TData = TOutput>(
 		input: TInput,
 		opts?: CreateTRPCServerQueryOptions<TOutput, TError, TData> & TRPCQueryOpts
 	) => Promise<
-		(
-			...args: [TInput | ((old: TInput) => TInput)] | []
+		<TData = TOutput>(
+			input?: StoreOrVal<TInput> | ((old: TInput) => StoreOrVal<TInput>),
+			opts?: StoreOrVal<
+				CreateTRPCServerQueryOptions<TOutput, TError, TData> & TRPCQueryOpts
+			>
 		) => CreateQueryResult<TData, TError>
 	>;
 } & {};
@@ -332,6 +431,7 @@ type CreateTRPCInfiniteQueryOptions<TInput, TOutput, TError, TData> = Omit<
 	>,
 	'queryKey' | 'queryFn' | 'initialPageParam'
 >;
+
 type CreateTRPCServerInfiniteQueryOptions<TInput, TOutput, TError, TData> =
 	CreateTRPCInfiniteQueryOptions<TInput, TOutput, TError, TData> & {
 		ssr?: boolean;
@@ -345,45 +445,54 @@ type InfiniteQueryOpts<TInput> = {
 	initialCursor?: ExtractCursorType<TInput>;
 };
 
-type CreateInfiniteQueryProcedure<TInput, TOutput, TError> = (TInput extends {
-	cursor?: any;
-}
-	? {
-			[Procedure.infiniteQuery]: <TData = TOutput>(
-				input: Omit<TInput, 'cursor'>,
-				opts: CreateTRPCInfiniteQueryOptions<TInput, TOutput, TError, TData> &
+type CreateInfiniteQueryProcedure<TInput = any, TOutput = any, TError = any> = {
+	[Procedure.infiniteQuery]: <TData = TOutput>(
+		input: StoreOrVal<Omit<TInput, 'cursor'>>,
+		opts: StoreOrVal<
+			CreateTRPCInfiniteQueryOptions<TInput, TOutput, TError, TData> &
+				InfiniteQueryOpts<TInput> &
+				TRPCQueryOpts
+		>
+	) => CreateInfiniteQueryResult<
+		InfiniteData<TData, NonNullable<ExtractCursorType<TInput>> | null>,
+		TError
+	>;
+
+	[Procedure.serverInfiniteQuery]: <TData = TOutput>(
+		input: Omit<TInput, 'cursor'>,
+		opts: CreateTRPCServerInfiniteQueryOptions<TInput, TOutput, TError, TData> &
+			InfiniteQueryOpts<TInput> &
+			TRPCQueryOpts
+	) => Promise<
+		<TData = TOutput>(
+			input?:
+				| StoreOrVal<Omit<TInput, 'cursor'>>
+				| ((old: Omit<TInput, 'cursor'>) => StoreOrVal<Omit<TInput, 'cursor'>>),
+			opts?: StoreOrVal<
+				CreateTRPCServerInfiniteQueryOptions<TInput, TOutput, TError, TData> &
 					InfiniteQueryOpts<TInput> &
 					TRPCQueryOpts
-			) => CreateInfiniteQueryResult<
-				InfiniteData<TData, NonNullable<ExtractCursorType<TInput>> | null>,
-				TError
-			>;
-			[Procedure.serverInfiniteQuery]: <TData = TOutput>(
-				input: Omit<TInput, 'cursor'>,
-				opts: CreateTRPCServerInfiniteQueryOptions<
-					TInput,
-					TOutput,
-					TError,
-					TData
-				> &
-					InfiniteQueryOpts<TInput> &
-					TRPCQueryOpts
-			) => Promise<
-				(
-					...args: [TInput | ((old: TInput) => TInput)] | []
-				) => CreateInfiniteQueryResult<
-					InfiniteData<TData, NonNullable<ExtractCursorType<TInput>> | null>,
-					TError
-				>
-			>;
-		}
-	: {}) & {};
+			>
+			// ...args: [TInput | ((old: TInput) => TInput)] | []
+		) => CreateInfiniteQueryResult<
+			InfiniteData<TData, NonNullable<ExtractCursorType<TInput>> | null>,
+			TError
+		>
+	>;
+};
 
 type QueryProcedures<TInput, TOutput, TError> = GetQueryKey<TInput> &
 	CreateQueryProcedure<TInput, TOutput, TError> &
-	CreateInfiniteQueryProcedure<TInput, TOutput, TError>;
+	(TInput extends { cursor?: any }
+		? CreateInfiniteQueryProcedure<TInput, TOutput, TError>
+		: {});
 
-type CreateMutationProcedure<TInput, TOutput, TError, TContext = unknown> = {
+type CreateMutationProcedure<
+	TInput = any,
+	TOutput = any,
+	TError = any,
+	TContext = unknown,
+> = {
 	[Procedure.mutate]: (
 		opts?: CreateMutationOptions<TOutput, TError, TInput, TContext>
 	) => CreateMutationResult<TOutput, TError, TInput, TContext>;
@@ -402,7 +511,7 @@ type GetSubscriptionOutput<TOpts> = TOpts extends unknown & Partial<infer A>
 		: never
 	: never;
 
-type CreateSubscriptionProcedure<TInput, TOutput, TError> = {
+type CreateSubscriptionProcedure<TInput = any, TOutput = any, TError = any> = {
 	[Procedure.subscribe]: (
 		input: TInput,
 		opts?: CreateSubscriptionOptions<TOutput, TError>
@@ -625,22 +734,53 @@ const procedures: Record<PropertyKey, (ctx: AdapterContext) => any> = {
 	},
 	[Procedure.query]: ({ path, client, abortOnUnmount }) => {
 		return (input: any, opts?: any) => {
-			const shouldAbortOnUnmount = opts?.trpc?.abortOnUnmount ?? abortOnUnmount;
-			return createQuery({
-				...opts,
-				queryKey: getArrayQueryKey(path, input, 'query'),
-				queryFn: ({ signal }) =>
-					client.query(path.join('.'), input, {
-						...(shouldAbortOnUnmount && { signal }),
-					}),
-			});
+			const isOptsStore = isSvelteStore(opts);
+			const isInputStore = isSvelteStore(input);
+			const currentOpts = isOptsStore ? get(opts) : opts;
+
+			if (!isInputStore && !isOptsStore) {
+				const shouldAbortOnUnmount =
+					opts?.trpc?.abortOnUnmount ?? abortOnUnmount;
+				return createQuery({
+					...opts,
+					queryKey: getArrayQueryKey(path, input, 'query'),
+					queryFn: ({ signal }) =>
+						client.query(path.join('.'), input, {
+							...(shouldAbortOnUnmount && { signal }),
+						}),
+				});
+			}
+
+			const shouldAbortOnUnmount =
+				currentOpts?.trpc?.abortOnUnmount ?? abortOnUnmount;
+
+			return createQuery(
+				derived(
+					[isInputStore ? input : blankStore, isOptsStore ? opts : blankStore],
+					([$input, $opts]) => {
+						const newInput = !isBlank($input) ? $input : input;
+						const newOpts = !isBlank($opts) ? $opts : opts;
+						return {
+							...newOpts,
+							queryKey: getArrayQueryKey(path, newInput, 'query'),
+							queryFn: ({ signal }) =>
+								client.query(path.join('.'), newInput, {
+									...(shouldAbortOnUnmount && { signal }),
+								}),
+						} satisfies CreateQueryOptions;
+					}
+				)
+			);
 		};
 	},
 	[Procedure.serverQuery]: ({ path, client, queryClient, abortOnUnmount }) => {
 		const pathString = path.join('.');
 
-		return async (input: any, opts?: any) => {
-			const shouldAbortOnUnmount = opts?.trpc?.abortOnUnmount ?? abortOnUnmount;
+		return async (_input: any, _opts?: any) => {
+			let input = _input;
+			let opts = _opts;
+			let shouldAbortOnUnmount = opts?.trpc?.abortOnUnmount ?? abortOnUnmount;
+
 			const query: FetchQueryOptions = {
 				queryKey: getArrayQueryKey(path, input, 'query'),
 				queryFn: ({ signal }) =>
@@ -657,53 +797,89 @@ const procedures: Record<PropertyKey, (ctx: AdapterContext) => any> = {
 				await queryClient.prefetchQuery(query);
 			}
 
-			const defaultOptions = queryClient.getDefaultOptions();
-
 			return (...args: any[]) => {
-				let newQuery = query;
+				if (args.length > 0) input = args.shift();
+				if (args.length > 0) opts = args.shift();
 
-				if (args.length > 0) {
-					const newInput = args[0];
-					let i = newInput;
-					if (typeof newInput === 'function') i = newInput(input);
-					newQuery = {
-						queryKey: getArrayQueryKey(path, i, 'query'),
-						queryFn: ({ signal }) =>
-							client.query(pathString, i, {
-								...(shouldAbortOnUnmount && { signal }),
-							}),
-					};
-				}
+				const isOptsStore = isSvelteStore(opts);
+				const currentOpts = isOptsStore ? get(opts) : opts;
+				shouldAbortOnUnmount =
+					currentOpts?.trpc?.abortOnUnmount ?? abortOnUnmount;
 
-				return createQuery({
-					...opts,
-					...newQuery,
-					...(cacheNotFound
-						? {
-								refetchOnMount:
-									opts?.refetchOnMount ??
-									defaultOptions.queries?.refetchOnMount ??
-									false,
-							}
-						: {}),
-				});
+				const staleTime = writable<number | null>(Infinity);
+				onMount(() => { staleTime.set(null); }); // prettier-ignore
+
+				return createQuery(
+					derived(
+						[
+							isSvelteStore(input) ? input : blankStore,
+							isOptsStore ? opts : blankStore,
+							staleTime,
+						],
+						([$input, $opts, $staleTime]) => {
+							const newInput = !isBlank($input) ? $input : input;
+							const newOpts = !isBlank($opts) ? $opts : opts;
+							return {
+								...newOpts,
+								queryKey: getArrayQueryKey(path, newInput, 'query'),
+								queryFn: ({ signal }) =>
+									client.query(pathString, newInput, {
+										...(shouldAbortOnUnmount && { signal }),
+									}),
+								...($staleTime && { staleTime: $staleTime }),
+							} satisfies CreateQueryOptions;
+						}
+					)
+				);
 			};
 		};
 	},
 	[Procedure.infiniteQuery]: ({ path, client, abortOnUnmount }) => {
 		return (input: any, opts?: any) => {
-			const shouldAbortOnUnmount = opts?.trpc?.abortOnUnmount ?? abortOnUnmount;
-			return createInfiniteQuery({
-				...opts,
-				initialPageParam: opts.initialCursor ?? null,
-				queryKey: getArrayQueryKey(path, input, 'infinite'),
-				queryFn: ({ pageParam, signal }) =>
-					client.query(
-						path.join('.'),
-						{ ...input, cursor: pageParam ?? opts?.initialCursor },
-						{ ...(shouldAbortOnUnmount && { signal }) }
-					),
-			});
+			const isOptsStore = isSvelteStore(opts);
+			const isInputStore = isSvelteStore(input);
+			const currentOpts = isOptsStore ? get(opts) : opts;
+
+			if (!isInputStore && !isOptsStore) {
+				const shouldAbortOnUnmount =
+					opts?.trpc?.abortOnUnmount ?? abortOnUnmount;
+
+				return createInfiniteQuery({
+					...opts,
+					initialPageParam: opts?.initialCursor ?? null,
+					queryKey: getArrayQueryKey(path, input, 'infinite'),
+					queryFn: ({ pageParam, signal }) =>
+						client.query(
+							path.join('.'),
+							{ ...input, cursor: pageParam ?? opts?.initialCursor },
+							{ ...(shouldAbortOnUnmount && { signal }) }
+						),
+				} satisfies CreateInfiniteQueryOptions);
+			}
+
+			const shouldAbortOnUnmount =
+				currentOpts?.trpc?.abortOnUnmount ?? abortOnUnmount;
+
+			return createInfiniteQuery(
+				derived(
+					[isInputStore ? input : blankStore, isOptsStore ? opts : blankStore],
+					([$input, $opts]) => {
+						const newInput = !isBlank($input) ? $input : input;
+						const newOpts = !isBlank($opts) ? $opts : opts;
+
+						return {
+							...newOpts,
+							queryKey: getArrayQueryKey(path, newInput, 'infinite'),
+							queryFn: ({ pageParam, signal }) =>
+								client.query(
+									path.join('.'),
+									{ ...newInput, cursor: pageParam ?? newOpts?.initialCursor },
+									{ ...(shouldAbortOnUnmount && { signal }) }
+								),
+						} satisfies CreateInfiniteQueryOptions;
+					}
+				)
+			);
 		};
 	},
 	[Procedure.serverInfiniteQuery]: ({
@@ -714,8 +890,11 @@ const procedures: Record<PropertyKey, (ctx: AdapterContext) => any> = {
 	}) => {
 		const pathString = path.join('.');
 
-		return async (input: any, opts?: any) => {
-			const shouldAbortOnUnmount = opts?.trpc?.abortOnUnmount ?? abortOnUnmount;
+		return async (_input: any, _opts?: any) => {
+			let input = _input;
+			let opts = _opts;
+			let shouldAbortOnUnmount = opts?.trpc?.abortOnUnmount ?? abortOnUnmount;
+
 			const query: Omit<FetchInfiniteQueryOptions, 'initialPageParam'> = {
 				queryKey: getArrayQueryKey(path, input, 'infinite'),
 				queryFn: ({ pageParam, signal }) =>
@@ -735,38 +914,46 @@ const procedures: Record<PropertyKey, (ctx: AdapterContext) => any> = {
 			}
 
 			return (...args: any[]) => {
-				let newQuery = query;
+				if (args.length > 0) input = args.shift();
+				if (args.length > 0) opts = args.shift();
 
-				if (args.length > 0) {
-					const newInput = args[0];
-					let i = newInput;
-					if (typeof newInput === 'function') i = newInput(input);
-					newQuery = {
-						queryKey: getArrayQueryKey(path, i, 'infinite'),
-						queryFn: ({ pageParam, signal }) =>
-							client.query(
-								pathString,
-								{ ...i, cursor: pageParam ?? opts?.initialCursor },
-								{ ...(shouldAbortOnUnmount && { signal }) }
-							),
-					};
-				}
+				const isOptsStore = isSvelteStore(opts);
+				const currentOpts = isOptsStore ? get(opts) : opts;
+				shouldAbortOnUnmount =
+					currentOpts?.trpc?.abortOnUnmount ?? abortOnUnmount;
 
-				const defaultOptions = queryClient.getDefaultOptions();
+				const staleTime = writable<number | null>(Infinity);
+				onMount(() => { staleTime.set(null); }); // prettier-ignore
 
-				return createInfiniteQuery({
-					...opts,
-					initialPageParam: opts.initialCursor ?? null,
-					...newQuery,
-					...(cacheNotFound
-						? {
-								refetchOnMount:
-									opts?.refetchOnMount ??
-									defaultOptions.queries?.refetchOnMount ??
-									false,
-							}
-						: {}),
-				});
+				return createInfiniteQuery(
+					derived(
+						[
+							isSvelteStore(input) ? input : blankStore,
+							isOptsStore ? opts : blankStore,
+							staleTime,
+						],
+						([$input, $opts, $staleTime]) => {
+							const newInput = !isBlank($input) ? $input : input;
+							const newOpts = !isBlank($opts) ? $opts : opts;
+
+							return {
+								...newOpts,
+								initialPageParam: newOpts?.initialCursor,
+								queryKey: getArrayQueryKey(path, newInput, 'infinite'),
+								queryFn: ({ pageParam, signal }) =>
+									client.query(
+										pathString,
+										{
+											...newInput,
+											cursor: pageParam ?? newOpts?.initialCursor,
+										},
+										{ ...(shouldAbortOnUnmount && { signal }) }
+									),
+								...($staleTime && { staleTime: $staleTime }),
+							} satisfies CreateInfiniteQueryOptions;
+						}
+					)
+				);
 			};
 		};
 	},
@@ -817,11 +1004,15 @@ const procedures: Record<PropertyKey, (ctx: AdapterContext) => any> = {
 		if (path.length !== 0) return;
 		const proxy = createQueriesProxy(ctx);
 
-		const defaultOptions = queryClient.getDefaultOptions();
+		return async (
+			input: (...args: any[]) => QueryObserverOptionsForCreateQueries[],
+			_opts?: any
+		) => {
+			let opts = _opts;
 
-		return async (input: (...args: any[]) => any, opts?: any) => {
-			const queries = await Promise.all(
-				input(proxy).map(async (query: any) => {
+			let queries = input(proxy);
+			await Promise.all(
+				queries.map(async (query: any) => {
 					const cache = queryClient
 						.getQueryCache()
 						.find({ queryKey: query.queryKey });
@@ -830,27 +1021,29 @@ const procedures: Record<PropertyKey, (ctx: AdapterContext) => any> = {
 					if (query.ssr !== false && cacheNotFound) {
 						await queryClient.prefetchQuery(query);
 					}
-
-					return {
-						...query,
-						...(cacheNotFound
-							? {
-									refetchOnMount:
-										query.refetchOnMount ??
-										defaultOptions.queries?.refetchOnMount ??
-										false,
-								}
-							: {}),
-					};
 				})
 			);
 
-			return (newInput?: (...args: any[]) => any) => {
-				let newQueries = queries;
-				if (newInput) newQueries = newInput(proxy, queries);
+			return (...args: any[]) => {
+				if (args.length > 0) queries = args.shift()!(proxy, queries);
+				if (args.length > 0) opts = args.shift();
+
+				const staleTime = writable<number | null>(Infinity);
+				onMount(() => { staleTime.set(null); }); // prettier-ignore
+
 				return createQueries({
 					...opts,
-					queries: newQueries,
+					queries: derived(
+						[isSvelteStore(queries) ? queries : blankStore, staleTime],
+						([$queries, $staleTime]) => {
+							const newQueries = !isBlank($queries) ? $queries : queries;
+							if (!staleTime) return newQueries;
+							return newQueries.map((query) => ({
+								...query,
+								...($staleTime && { staleTime: $staleTime }),
+							}));
+						}
+					),
 				});
 			};
 		};
@@ -912,6 +1105,23 @@ type GetQueryKey<TInput = undefined> = [TInput] extends [undefined | void]
 			[Procedure.queryKey]: (input: TInput, type?: QueryType) => QueryKey;
 		} & {};
 
+type ValFromStore<T> = T extends Readable<infer U> ? U : T;
+
+// prettier-ignore
+export type InferProcedureOpts<
+	T extends
+	| CreateQueryProcedure[typeof Procedure.query]
+	| CreateInfiniteQueryProcedure[typeof Procedure.infiniteQuery]
+	| CreateMutationProcedure[typeof Procedure.mutate]
+	| CreateSubscriptionProcedure[typeof Procedure.subscribe],
+> = NonNullable<(
+		T extends CreateQueryProcedure[typeof Procedure.query] ? ValFromStore<Parameters<T>[1]>
+	: T extends CreateInfiniteQueryProcedure[typeof Procedure.infiniteQuery] ? ValFromStore<Parameters<T>[1]>
+	: T extends CreateMutationProcedure[typeof Procedure.mutate] ? ValFromStore<Parameters<T>[0]>
+	: T extends CreateSubscriptionProcedure[typeof Procedure.subscribe] ? ValFromStore<Parameters<T>[1]>
+	: never
+)>;
+
 export function svelteQueryWrapper<TRouter extends AnyRouter>({
 	client,
 	queryClient: _queryClient,
@@ -931,22 +1141,11 @@ export function svelteQueryWrapper<TRouter extends AnyRouter>({
 	const innerClient = client.__untypedClient as InnerClient;
 
 	return new DeepProxy(
+		// prettier-ignore
 		{} as ClientWithQuery &
 			(ClientWithQuery extends Record<any, any>
-				? {
-						/**
-						 * @deprecated renamed to `createUtils` and will be removed in a future tRPC version
-						 *
-						 * @see https://trpc.io/docs/client/react/useUtils
-						 */
-						[Procedure.context](): CreateUtils<Client, RouterError>;
-						/**
-						 * @see https://trpc.io/docs/client/react/useUtils
-						 */
-						[Procedure.utils](): CreateUtils<Client, RouterError>;
-						[Procedure.queries]: CreateQueries<Client, RouterError>;
-						[Procedure.serverQueries]: CreateServerQueries<Client, RouterError>;
-					}
+				? CreateUtilsProcedure<Client, RouterError>
+					& CreateQueriesProcedure<Client, RouterError>
 				: {}),
 		{
 			get(_, key) {

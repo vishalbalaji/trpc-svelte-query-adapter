@@ -20,7 +20,15 @@ export const router = t.router({
 					.then((r) => r[0]);
 			}),
 
-		get: t.procedure.query(({ ctx: { db } }) => db.query.todo.findMany()),
+		get: t.procedure
+			.input(z.string().optional())
+			.query(({ input: filter, ctx: { db } }) =>
+				db.query.todo.findMany({
+					where: filter
+						? (todo, { like }) => like(todo.text, `%${filter}%`)
+						: undefined,
+				})
+			),
 
 		getPopular: t.procedure
 			.input(

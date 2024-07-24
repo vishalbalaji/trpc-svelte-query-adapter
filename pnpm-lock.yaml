@@ -16,76 +16,6 @@ importers:
         specifier: ^5.0.0
         version: 5.5.3
 
-  '@app':
-    dependencies:
-      '@tanstack/svelte-query':
-        specifier: ^5.50.3
-        version: 5.50.3(svelte@4.2.18)
-      '@trpc/client':
-        specifier: ^10.45.2
-        version: 10.45.2(@trpc/server@10.45.2)
-      '@trpc/server':
-        specifier: ^10.45.2
-        version: 10.45.2
-      trpc-svelte-query-adapter:
-        specifier: workspace:^
-        version: link:../@lib
-      trpc-sveltekit:
-        specifier: ^3.6.2
-        version: 3.6.2(@sveltejs/adapter-node@5.2.0(@sveltejs/kit@2.5.18(@sveltejs/vite-plugin-svelte@3.1.1(svelte@4.2.18)(vite@5.3.3(@types/node@20.14.10)(sass@1.77.8)))(svelte@4.2.18)(vite@5.3.3(@types/node@20.14.10)(sass@1.77.8))))(@trpc/client@10.45.2(@trpc/server@10.45.2))(@trpc/server@10.45.2)(ws@8.18.0)
-      zod:
-        specifier: ^3.23.8
-        version: 3.23.8
-    devDependencies:
-      '@sveltejs/adapter-auto':
-        specifier: ^3.0.0
-        version: 3.2.2(@sveltejs/kit@2.5.18(@sveltejs/vite-plugin-svelte@3.1.1(svelte@4.2.18)(vite@5.3.3(@types/node@20.14.10)(sass@1.77.8)))(svelte@4.2.18)(vite@5.3.3(@types/node@20.14.10)(sass@1.77.8)))
-      '@sveltejs/kit':
-        specifier: ^2.0.0
-        version: 2.5.18(@sveltejs/vite-plugin-svelte@3.1.1(svelte@4.2.18)(vite@5.3.3(@types/node@20.14.10)(sass@1.77.8)))(svelte@4.2.18)(vite@5.3.3(@types/node@20.14.10)(sass@1.77.8))
-      '@sveltejs/vite-plugin-svelte':
-        specifier: ^3.0.0
-        version: 3.1.1(svelte@4.2.18)(vite@5.3.3(@types/node@20.14.10)(sass@1.77.8))
-      '@types/eslint':
-        specifier: ^8.56.7
-        version: 8.56.10
-      eslint:
-        specifier: ^9.0.0
-        version: 9.6.0
-      eslint-plugin-svelte:
-        specifier: ^2.36.0
-        version: 2.41.0(eslint@9.6.0)(svelte@4.2.18)(ts-node@10.9.2(@types/node@20.14.10)(typescript@5.5.3))
-      globals:
-        specifier: ^15.0.0
-        version: 15.8.0
-      prettier:
-        specifier: ^3.1.1
-        version: 3.3.2
-      prettier-plugin-svelte:
-        specifier: ^3.1.2
-        version: 3.2.5(prettier@3.3.2)(svelte@4.2.18)
-      svelte:
-        specifier: ^4.2.7
-        version: 4.2.18
-      svelte-check:
-        specifier: ^3.6.0
-        version: 3.8.4(postcss-load-config@4.0.2(postcss@8.4.39)(ts-node@10.9.2(@types/node@20.14.10)(typescript@5.5.3)))(postcss@8.4.39)(sass@1.77.8)(svelte@4.2.18)
-      tslib:
-        specifier: ^2.4.1
-        version: 2.6.3
-      typescript:
-        specifier: ^5.0.0
-        version: 5.5.3
-      typescript-eslint:
-        specifier: ^8.0.0-alpha.20
-        version: 8.0.0-alpha.41(eslint@9.6.0)(typescript@5.5.3)
-      typescript-svelte-plugin:
-        specifier: ^0.3.39
-        version: 0.3.39(svelte@4.2.18)(typescript@5.5.3)
-      vite:
-        specifier: ^5.0.3
-        version: 5.3.3(@types/node@20.14.10)(sass@1.77.8)
-
   '@example':
     dependencies:
       '@picocss/pico':
@@ -189,8 +119,8 @@ importers:
         specifier: ^10.43.3
         version: 10.45.2
       proxy-deep:
-        specifier: ^3.1.1
-        version: 3.1.1
+        specifier: ^4.0.1
+        version: 4.0.1
       svelte:
         specifier: ^4.2.3
         version: 4.2.18
@@ -219,36 +149,6 @@ importers:
       typescript-eslint:
         specifier: ^8.0.0-alpha.20
         version: 8.0.0-alpha.41(eslint@9.6.0)(typescript@5.5.3)
-
-  '@shared/eslint':
-    devDependencies:
-      eslint-config-prettier:
-        specifier: ^9.1.0
-        version: 9.1.0(eslint@9.6.0)
-      globals:
-        specifier: ^15.0.0
-        version: 15.8.0
-
-  '@shared/prettier':
-    devDependencies:
-      prettier:
-        specifier: ^3.1.1
-        version: 3.3.2
-
-  '@utils/eslint-shared':
-    devDependencies:
-      eslint-config-prettier:
-        specifier: ^9.1.0
-        version: 9.1.0(eslint@9.6.0)
-      globals:
-        specifier: ^15.0.0
-        version: 15.8.0
-
-  '@utils/prettier-shared':
-    devDependencies:
-      prettier:
-        specifier: ^3.1.1
-        version: 3.3.2
 
 packages:
 
@@ -1873,8 +1773,8 @@ packages:
     engines: {node: '>=14'}
     hasBin: true
 
-  proxy-deep@3.1.1:
-    resolution: {integrity: sha512-kppbvLUNJ4IOMZds9/4gz/rtT5OFiesy3XosLsgMKlF3vb6GA5Y3ptyDlzKLcOcUBW+zaY+RiMINTsgE+O6e+Q==}
+  proxy-deep@4.0.1:
+    resolution: {integrity: sha512-7Ojq0fbemOGGpRBbExicriLljomgJ32t9jL8HV+FvpqU/UYzowLKVhJyRYcCMBeAGCz++rK2maNzuZYbqjAVPw==}
 
   pump@3.0.0:
     resolution: {integrity: sha512-LwZy+p3SFs1Pytd/jYct4wpv49HiYCqd9Rlc5ZVdk0V+8Yzv6jR5Blk3TRmPL1ft69TxP0IMZGJ+WPFU2BFhww==}
@@ -3667,7 +3567,7 @@ snapshots:
 
   prettier@3.3.2: {}
 
-  proxy-deep@3.1.1: {}
+  proxy-deep@4.0.1: {}
 
   pump@3.0.0:
     dependencies:

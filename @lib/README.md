@@ -4,13 +4,15 @@
 [![License][license-image]][license-url]
 [![Last commit][last-commit-image]][repo-url]
 
-> **NOTE:** The README on [npmjs](https://npmjs.com/trpc-svelte-query-adapter) might not be fully up to date. Please refer to the [README on the Github Repo](https://github.com/vishalbalaji/trpc-svelte-query-adapter/#readme) for the latest setup instructions.
+> [!NOTE]
+> The README on [npmjs](https://npmjs.com/trpc-svelte-query-adapter) might not be fully up to date. Please refer to
+> the [README on the Github Repo](https://github.com/vishalbalaji/trpc-svelte-query-adapter/#readme) for the latest setup instructions.
 
-This package provides an adapter to call `tRPC` procedures wrapped with <code>[@tanstack/svelte-query](https://tanstack.com/query/latest/docs/svelte/overview)</code>, similar to <code>[@trpc/react-query](https://trpc.io/docs/react-query)</code>. This is made possible using <code>[proxy-deep](https://www.npmjs.com/package/proxy-deep)</code>.
+An adapter to call `tRPC` procedures wrapped with <code>[@tanstack/svelte-query](https://tanstack.com/query/latest/docs/svelte/overview)</code>, similar to <code>[@trpc/react-query](https://trpc.io/docs/react-query)</code>. This is made possible using <code>[proxy-deep](https://www.npmjs.com/package/proxy-deep)</code>.
 
 ## Installation
 
-```console
+```sh
 # npm
 npm install trpc-svelte-query-adapter @trpc/client @trpc/server @tanstack/svelte-query
 
@@ -202,7 +204,8 @@ By default, these 3 procedures will pre-fetch the data required to pre-render th
 
 These procedures can be used as such:
 
-> **NOTE:** [Gotta await top-level promises to pre-fetch data from SvelteKit v2](https://kit.svelte.dev/docs/migrating-to-sveltekit-2#top-level-promises-are-no-longer-awaited).
+> [!NOTE] 
+> [Gotta await top-level promises to pre-fetch data from SvelteKit v2](https://kit.svelte.dev/docs/migrating-to-sveltekit-2#top-level-promises-are-no-longer-awaited).
 
 ```typescript
 // +page.ts
@@ -258,58 +261,62 @@ Then, in the component:
 {/each}
 ```
 
-You can also optionally pass new inputs to the queries and infinite queries  from the client side(see [#34](/../../issues/34)) like so:
+You can also optionally pass new inputs to the queries and infinite queries from the client side(see [#34](/../../issues/34), [#47]( /../../issues/47 )) like so:
 
 ```svelte
 <script lang="ts">
   import { page } from "$app/stores";
   import type { PageData } from "./$types";
 
+  import { derived, writable } from '@svelte/store';
+
   export let data: PageData;
 
-  let name = 'foo';
-  let newNames: string[] = [];
+  const name = writable('foo');
+  const newNames = writable<string[]>([]);
 
-  $: foo = data.foo(name); // `$` label to make the query reactive to the input
+  const foo = data.foo($name);
 
   // You can also access the default input if you pass in a callback as the new input:
-  // $: foo = data.foo((old) => old + name);
+  // const foo = data.foo((old) => derived(name, ($name) => old + name));
 
-  $: queries = data.queries((t, old) => [...old, ...newNames.map((name) => t.greeting(name))]);
+  const queries = data.queries((t, old) => derived(newNames, ($newNames) => [...old, ...$newNames.map((name) => t.greeting(name))]));
 </script>
 
-{#if $foo.isPending}
-  Loading...
-{:else if $foo.isError}
-  {$foo.error}
-{:else if $foo.data}
-  {$foo.data}
-{/if}
+<div>
+  {#if $foo.isPending}
+    Loading...
+  {:else if $foo.isError}
+    {$foo.error}
+    {:else if $foo.data}
+    {$foo.data}
+  {/if}
+  <input bind:value={$name} />
+</div>
 
 <br />
-<input bind:value={name} />
 
-<br /><br />
+<div>
+  {#each $queries as query}
+    {#if query.isPending}
+      Loading...
+    {:else if query.isError}
+      {query.error.message}
+      {:else if query.data}
+      {query.data}
+    {/if}
+    <br />
+  {/each}
 
-{#each $queries as query}
-  {#if query.isPending}
-    Loading...
-  {:else if query.isError}
-    {query.error.message}
-  {:else if query.data}
-    {query.data}
-  {/if}
-  <br />
-{/each}
-
-<form on:submit|preventDefault={(e) => {
-  const data = new FormData(e.currentTarget).get('name');
-  if (typeof data === 'string') newNames.push(data);
-  newNames = newNames;
-}}>
-  <input name="name" />
-  <button type="submit">Submit</button>
-</form>
+  <form on:submit|preventDefault={(e) => {
+    const data = new FormData(e.currentTarget).get('name');
+    if (typeof data === 'string') $newNames.push(data);
+    $newNames = $newNames;
+  }}>
+    <input name="name" />
+    <button type="submit">Submit</button>
+  </form>
+</div>
 ```
 
 [npm-url]: https://npmjs.org/package/trpc-svelte-query-adapter

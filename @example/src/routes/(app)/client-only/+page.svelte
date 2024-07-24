@@ -3,20 +3,28 @@
 
 	import { X, Plus } from 'phosphor-svelte';
 
+	import { debounce } from '$lib/utils';
 	import { page } from '$app/stores';
 	import { trpc } from '$lib/trpc/client';
+	import { writable } from 'svelte/store';
+	import type { InferProcedureOpts } from 'trpc-svelte-query-adapter';
 
 	const api = trpc($page);
 	const utils = api.createUtils();
 
 	let todoInput: HTMLInputElement;
 
-	const todos = api.todos.get.createQuery();
+	const filter = writable<string | undefined>();
+	const opts = writable({
+		refetchInterval: Infinity,
+	} satisfies InferProcedureOpts<typeof api.todos.get.createQuery>);
+
+	const todos = api.todos.get.createQuery(filter, opts);
 
 	const popularTodos = api.todos.getPopular.createInfiniteQuery(
 		{},
 		{
-			getNextPageParam: (data) => data.nextCursor,
+			getNextPageParam: (lastPage) => lastPage.nextCursor,
 		}
 	);
 
@@ -79,6 +87,33 @@
 					{/each}
 				</div>
 			{/if}
+		</form>
+
+		<form action="#" style="margin-top:0.5rem">
+			<!-- eslint-disable-next-line svelte/valid-compile -->
+			<!-- svelte-ignore a11y-no-redundant-roles -->
+			<fieldset role="group">
+				<input
+					type="text"
+					name="filter"
+					value={$filter ?? ''}
+					placeholder="Filter"
+					on:input|preventDefault={debounce((e) => {
+						if (!(e.target instanceof HTMLInputElement)) return;
+						$filter = e.target.value || undefined;
+					}, 500)}
+				/>
+				<input
+					style="width:15ch;"
+					type="number"
+					placeholder="Refetch"
+					value={$opts?.refetchInterval}
+					on:input|preventDefault={debounce((e) => {
+						if (!(e.target instanceof HTMLInputElement)) return;
+						$opts.refetchInterval = e.target.value ? +e.target.value : Infinity;
+					}, 500)}
+				/>
+			</fieldset>
 		</form>
 
 		<hr />
