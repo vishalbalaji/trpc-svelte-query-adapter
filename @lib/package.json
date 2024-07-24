@@ -34,7 +34,7 @@
     "import": "./src/index.ts"
   },
   "dependencies": {
-    "proxy-deep": "^3.1.1"
+    "proxy-deep": "^4.0.1"
   },
   "peerDependencies": {
     "@tanstack/svelte-query": "^5.8.2",
