@@ -261,7 +261,7 @@ Then, in the component:
 {/each}
 ```
 
-You can also optionally pass new inputs to the queries and infinite queries from the client side(see [#34](/../../issues/34), [#47][/../../issues/47]) like so:
+You can also optionally pass new inputs to the queries and infinite queries from the client side(see [#34](/../../issues/34), [#47]( /../../issues/47 )) like so:
 
 ```svelte
 <script lang="ts">
