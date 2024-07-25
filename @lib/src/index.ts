@@ -105,33 +105,37 @@ const Procedure = {
 	serverQueries: 'createServerQueries',
 } as const;
 
-const UtilsProcedure = {
-	client: 'client',
-	fetch: 'fetch',
-	prefetch: 'prefetch',
-	fetchInfinite: 'fetchInfinite',
-	prefetchInfinite: 'prefetchInfinite',
-	ensureData: 'ensureData',
-	invalidate: 'invalidate',
-	refetch: 'refetch',
-	reset: 'reset',
-	cancel: 'cancel',
-	setData: 'setData',
-	getData: 'getData',
-	setInfiniteData: 'setInfiniteData',
-	getInfiniteData: 'getInfiniteData',
+const Util = {
+	Query: {
+		client: 'client',
+		fetch: 'fetch',
+		prefetch: 'prefetch',
+		fetchInfinite: 'fetchInfinite',
+		prefetchInfinite: 'prefetchInfinite',
+		ensureData: 'ensureData',
+		invalidate: 'invalidate',
+		refetch: 'refetch',
+		reset: 'reset',
+		cancel: 'cancel',
+		setData: 'setData',
+		getData: 'getData',
+		setInfiniteData: 'setInfiniteData',
+		getInfiniteData: 'getInfiniteData',
+	},
+
+	Mutation: {
+		setMutationDefaults: 'setMutationDefaults',
+		getMutationDefaults: 'getMutationDefaults',
+		isMutating: 'isMutating',
+	},
 } as const;
 
 // createUtils
-type UtilsProcedures<
-	TInput = undefined,
-	TOutput = undefined,
-	TError = undefined,
-> = {
+type QueryUtils<TInput = undefined, TOutput = undefined, TError = undefined> = {
 	/**
 	 * @link https://tanstack.com/query/v4/docs/reference/QueryClient#queryclientfetchquery
 	 */
-	[UtilsProcedure.fetch](
+	[Util.Query.fetch](
 		input: TInput,
 		opts?: FetchQueryOptions<TInput, TError, TOutput>
 	): Promise<TOutput>;
@@ -139,7 +143,7 @@ type UtilsProcedures<
 	/**
 	 * @link https://tanstack.com/query/v4/docs/reference/QueryClient#queryclientfetchinfinitequery
 	 */
-	[UtilsProcedure.fetchInfinite](
+	[Util.Query.fetchInfinite](
 		input: TInput,
 		opts?: FetchInfiniteQueryOptions<TInput, TError, TOutput>
 	): Promise<InfiniteData<TOutput>>;
@@ -147,7 +151,7 @@ type UtilsProcedures<
 	/**
 	 * @link https://tanstack.com/query/v4/docs/reference/QueryClient#queryclientprefetchquery
 	 */
-	[UtilsProcedure.prefetch](
+	[Util.Query.prefetch](
 		input: TInput,
 		opts?: FetchQueryOptions<TInput, TError, TOutput>
 	): Promise<void>;
@@ -155,7 +159,7 @@ type UtilsProcedures<
 	/**
 	 * @link https://tanstack.com/query/v4/docs/reference/QueryClient#queryclientprefetchinfinitequery
 	 */
-	[UtilsProcedure.prefetchInfinite](
+	[Util.Query.prefetchInfinite](
 		input: TInput,
 		opts?: FetchInfiniteQueryOptions<TInput, TError, TOutput>
 	): Promise<void>;
@@ -163,7 +167,7 @@ type UtilsProcedures<
 	/**
 	 * @link https://tanstack.com/query/v4/docs/react/reference/QueryClient#queryclientensurequerydata
 	 */
-	[UtilsProcedure.ensureData](
+	[Util.Query.ensureData](
 		input?: TInput,
 		opts?: FetchQueryOptions<TInput, TError, TOutput>
 	): Promise<TOutput>;
@@ -171,7 +175,7 @@ type UtilsProcedures<
 	/**
 	 * @link https://tanstack.com/query/v4/docs/reference/QueryClient#queryclientinvalidatequeries
 	 */
-	[UtilsProcedure.invalidate](
+	[Util.Query.invalidate](
 		input?: TInput,
 		filters?: InvalidateQueryFilters,
 		options?: InvalidateOptions
@@ -180,7 +184,7 @@ type UtilsProcedures<
 	/**
 	 * @link https://tanstack.com/query/v4/docs/reference/QueryClient#queryclientrefetchqueries
 	 */
-	[UtilsProcedure.refetch](
+	[Util.Query.refetch](
 		input?: TInput,
 		filters?: RefetchQueryFilters,
 		options?: RefetchOptions
@@ -189,7 +193,7 @@ type UtilsProcedures<
 	/**
 	 * @link https://tanstack.com/query/v4/docs/reference/QueryClient#queryclientcancelqueries
 	 */
-	[UtilsProcedure.cancel](
+	[Util.Query.cancel](
 		input?: TInput,
 		filters?: QueryFilters,
 		options?: CancelOptions
@@ -198,7 +202,7 @@ type UtilsProcedures<
 	/**
 	 * @link https://tanstack.com/query/v4/docs/reference/QueryClient#queryclientresetqueries
 	 */
-	[UtilsProcedure.reset](
+	[Util.Query.reset](
 		input?: TInput,
 		filters?: QueryFilters,
 		options?: ResetOptions
@@ -207,7 +211,7 @@ type UtilsProcedures<
 	/**
 	 * @link https://tanstack.com/query/v4/docs/reference/QueryClient#queryclientsetquerydata
 	 */
-	[UtilsProcedure.setData](
+	[Util.Query.setData](
 		input: TInput,
 		updater: Updater<TOutput | undefined, TOutput | undefined>,
 		options?: SetDataOptions
@@ -216,7 +220,7 @@ type UtilsProcedures<
 	/**
 	 * @link https://tanstack.com/query/v4/docs/reference/QueryClient#queryclientsetquerydata
 	 */
-	[UtilsProcedure.setInfiniteData](
+	[Util.Query.setInfiniteData](
 		input: TInput,
 		updater: Updater<
 			InfiniteData<TOutput> | undefined,
@@ -228,34 +232,62 @@ type UtilsProcedures<
 	/**
 	 * @link https://tanstack.com/query/v4/docs/reference/QueryClient#queryclientgetquerydata
 	 */
-	[UtilsProcedure.getData](input?: TInput): TOutput | undefined;
+	[Util.Query.getData](input?: TInput): TOutput | undefined;
 
 	/**
 	 * @link https://tanstack.com/query/v4/docs/reference/QueryClient#queryclientgetquerydata
 	 */
-	[UtilsProcedure.getInfiniteData](
+	[Util.Query.getInfiniteData](
 		input?: TInput
 	): InfiniteData<TOutput> | undefined;
 };
 
+type MutationUtils<
+	TInput = undefined,
+	TOutput = undefined,
+	TError = undefined,
+> = {
+	[Util.Mutation.setMutationDefaults](
+		opts:
+			| CreateMutationOptions<TInput, TOutput, TError>
+			| ((args: {
+					canonicalMutationFn: NonNullable<
+						CreateMutationOptions<TInput, TOutput, TError>['mutationFn']
+					>;
+			  }) => CreateMutationOptions<TInput, TOutput, TError>)
+	): void;
+
+	[Util.Mutation.getMutationDefaults]():
+		| CreateMutationOptions<TInput, TOutput, TError>
+		| undefined;
+
+	[Util.Mutation.isMutating](): number;
+};
+
+// prettier-ignore
 type AddUtilsPropTypes<TClient, TError> = {
-	[K in keyof TClient]: TClient[K] extends HasQuery
-		? UtilsProcedures<
+	[K in keyof TClient]:
+		TClient[K] extends HasQuery ? QueryUtils<
 				Parameters<TClient[K]['query']>[0],
 				Awaited<ReturnType<TClient[K]['query']>>,
 				TError
 			>
-		: AddUtilsPropTypes<TClient[K], TError> &
-				Pick<UtilsProcedures, typeof UtilsProcedure.invalidate>;
+	: TClient[K] extends HasMutate ? MutationUtils<
+			Parameters<TClient[K]['mutate']>[0],
+			Awaited<ReturnType<TClient[K]['mutate']>>,
+			TError
+	>
+	: AddUtilsPropTypes<TClient[K], TError> &
+			Pick<QueryUtils, typeof Util.Query.invalidate>;
 };
 
 type CreateUtilsProcedure<TClient, TError> = {
 	/**
 	 * @see https://trpc.io/docs/client/react/useUtils
 	 */
-	[Procedure.utils](): AddUtilsPropTypes<OnlyQueries<TClient>, TError> &
-		Pick<UtilsProcedures, typeof UtilsProcedure.invalidate> & {
-			[UtilsProcedure.client]: TClient;
+	[Procedure.utils](): AddUtilsPropTypes<TClient, TError> &
+		Pick<QueryUtils, typeof Util.Query.invalidate> & {
+			[Util.Query.client]: TClient;
 		};
 
 	/**
@@ -263,9 +295,9 @@ type CreateUtilsProcedure<TClient, TError> = {
 	 *
 	 * @see https://trpc.io/docs/client/react/useUtils
 	 */
-	[Procedure.context](): AddUtilsPropTypes<OnlyQueries<TClient>, TError> &
-		Pick<UtilsProcedures, typeof UtilsProcedure.invalidate> & {
-			[UtilsProcedure.client]: TClient;
+	[Procedure.context](): AddUtilsPropTypes<TClient, TError> &
+		Pick<QueryUtils, typeof Util.Query.invalidate> & {
+			[Util.Query.client]: TClient;
 		};
 } & {};
 
@@ -584,7 +616,7 @@ const utilsProcedures: Record<
 		client: InnerClient;
 	}) => any
 > = {
-	[UtilsProcedure.fetch]: ({ path, queryClient, client }) => {
+	[Util.Query.fetch]: ({ path, queryClient, client }) => {
 		return (input: any, opts?: any) => {
 			return queryClient.fetchQuery({
 				...opts,
@@ -593,7 +625,7 @@ const utilsProcedures: Record<
 			});
 		};
 	},
-	[UtilsProcedure.prefetch]: ({ path, queryClient, client }) => {
+	[Util.Query.prefetch]: ({ path, queryClient, client }) => {
 		return (input: any, opts?: any) => {
 			return queryClient.prefetchQuery({
 				...opts,
@@ -602,7 +634,7 @@ const utilsProcedures: Record<
 			});
 		};
 	},
-	[UtilsProcedure.fetchInfinite]: ({ path, queryClient, client }) => {
+	[Util.Query.fetchInfinite]: ({ path, queryClient, client }) => {
 		return (input: any, opts?: any) => {
 			return queryClient.fetchInfiniteQuery({
 				...opts,
@@ -612,7 +644,7 @@ const utilsProcedures: Record<
 			});
 		};
 	},
-	[UtilsProcedure.prefetchInfinite]: ({ path, queryClient, client }) => {
+	[Util.Query.prefetchInfinite]: ({ path, queryClient, client }) => {
 		return (input: any, opts?: any) => {
 			return queryClient.prefetchInfiniteQuery({
 				...opts,
@@ -622,7 +654,7 @@ const utilsProcedures: Record<
 			});
 		};
 	},
-	[UtilsProcedure.ensureData]: ({ path, queryClient, client }) => {
+	[Util.Query.ensureData]: ({ path, queryClient, client }) => {
 		return (input: any, opts?: any) => {
 			return queryClient.ensureQueryData({
 				...opts,
@@ -631,7 +663,7 @@ const utilsProcedures: Record<
 			});
 		};
 	},
-	[UtilsProcedure.invalidate]: ({ path, queryClient }) => {
+	[Util.Query.invalidate]: ({ path, queryClient }) => {
 		return (input?: any, filters?: any, options?: any) => {
 			return queryClient.invalidateQueries(
 				{
@@ -642,7 +674,7 @@ const utilsProcedures: Record<
 			);
 		};
 	},
-	[UtilsProcedure.refetch]: ({ path, queryClient }) => {
+	[Util.Query.refetch]: ({ path, queryClient }) => {
 		return (input?: any, filters?: any, options?: any) => {
 			return queryClient.refetchQueries(
 				{
@@ -653,7 +685,7 @@ const utilsProcedures: Record<
 			);
 		};
 	},
-	[UtilsProcedure.cancel]: ({ path, queryClient }) => {
+	[Util.Query.cancel]: ({ path, queryClient }) => {
 		return (input?: any, filters?: any, options?: any) => {
 			return queryClient.cancelQueries(
 				{
@@ -664,7 +696,7 @@ const utilsProcedures: Record<
 			);
 		};
 	},
-	[UtilsProcedure.reset]: ({ queryClient, path }) => {
+	[Util.Query.reset]: ({ queryClient, path }) => {
 		return (input?: any, filters?: any, options?: any) => {
 			return queryClient.resetQueries(
 				{
@@ -675,7 +707,7 @@ const utilsProcedures: Record<
 			);
 		};
 	},
-	[UtilsProcedure.setData]: ({ queryClient, path }) => {
+	[Util.Query.setData]: ({ queryClient, path }) => {
 		return (input: any, updater: any, options?: any) => {
 			return queryClient.setQueryData(
 				getArrayQueryKey(path, input, 'query'),
@@ -684,7 +716,7 @@ const utilsProcedures: Record<
 			);
 		};
 	},
-	[UtilsProcedure.setInfiniteData]: ({ queryClient, path }) => {
+	[Util.Query.setInfiniteData]: ({ queryClient, path }) => {
 		return (input: any, updater: any, options?: any) => {
 			return queryClient.setQueryData(
 				getArrayQueryKey(path, input, 'infinite'),
@@ -693,16 +725,44 @@ const utilsProcedures: Record<
 			);
 		};
 	},
-	[UtilsProcedure.getData]: ({ queryClient, path }) => {
+	[Util.Query.getData]: ({ queryClient, path }) => {
 		return (input?: any) => {
 			return queryClient.getQueryData(getArrayQueryKey(path, input, 'query'));
 		};
 	},
-	[UtilsProcedure.getInfiniteData]: ({ queryClient, path }) => {
+	[Util.Query.getInfiniteData]: ({ queryClient, path }) => {
 		return (input?: any) => {
 			return queryClient.getQueryData(
 				getArrayQueryKey(path, input, 'infinite')
 			);
+		};
+	},
+
+	[Util.Mutation.setMutationDefaults]: ({ queryClient, path, client }) => {
+		return (opts: any) => {
+			return queryClient.setMutationDefaults(
+				[path],
+				typeof opts === 'function'
+					? opts({
+							canonicalMutationFn: (input: unknown) => {
+								return client.mutation(path.join('.'), input, opts);
+							},
+						})
+					: opts
+			);
+		};
+	},
+	[Util.Mutation.getMutationDefaults]: ({ queryClient, path }) => {
+		return () => {
+			return queryClient.getMutationDefaults([path]);
+		};
+	},
+	[Util.Mutation.isMutating]: ({ queryClient, path }) => {
+		return () => {
+			queryClient.isMutating({
+				mutationKey: [path],
+				exact: true,
+			});
 		};
 	},
 };
@@ -712,7 +772,7 @@ function createUtilsProxy({ client, queryClient }: AdapterContext) {
 		{},
 		{
 			get(_target, key, _receiver) {
-				if (key === UtilsProcedure.client) return client;
+				if (key === Util.Query.client) return client;
 
 				if (Object.hasOwn(utilsProcedures, key)) {
 					return utilsProcedures[key]({
@@ -961,7 +1021,7 @@ const procedures: Record<PropertyKey, (ctx: AdapterContext) => any> = {
 		return (opts?: any) => {
 			return createMutation({
 				...opts,
-				mutationKey: path,
+				mutationKey: [path],
 				mutationFn: (data) => client.mutation(path.join('.'), data),
 			});
 		};
