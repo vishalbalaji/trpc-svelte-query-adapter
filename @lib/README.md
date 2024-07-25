@@ -53,15 +53,15 @@ The following instructions assume the `tRPC` router to have the following proced
 
 ```typescript
 export const router = t.router({
-  greeting: t.procedure
-    .input((name: unknown) => {
-      if (typeof name === 'string') return name;
+	greeting: t.procedure
+		.input((name: unknown) => {
+			if (typeof name === 'string') return name;
 
-      throw new Error(`Invalid input: ${typeof name}`);
-    })
-    .query(async ({ input }) => {
-      return `Hello, ${input} from tRPC v10 @ ${new Date().toLocaleTimeString()}`;
-    })
+			throw new Error(`Invalid input: ${typeof name}`);
+		})
+		.query(async ({ input }) => {
+			return `Hello, ${input} from tRPC v10 @ ${new Date().toLocaleTimeString()}`;
+		}),
 });
 
 export type Router = typeof router;
@@ -81,12 +81,12 @@ import { createTRPCProxyClient, httpBatchLink } from '@trpc/client';
 import { svelteQueryWrapper } from 'trpc-svelte-query-adapter';
 
 const client = createTRPCProxyClient<Router>({
-  links: [
-    httpBatchLink({
-    // Replace this URL with that of your tRPC server
-      url: 'http://localhost:5000/api/v1/trpc/',
-    }),
-  ],
+	links: [
+		httpBatchLink({
+			// Replace this URL with that of your tRPC server
+			url: 'http://localhost:5000/api/v1/trpc/',
+		}),
+	],
 });
 
 export const trpc = svelteQueryWrapper<Router>({ client });
@@ -122,20 +122,20 @@ Here is an example of what that might look like:
 import type { QueryClient } from '@tanstack/svelte-query';
 
 const client = createTRPCProxyClient<Router>({
-  links: [
-    httpBatchLink({
-    // Replace this URL with that of your tRPC server
-      url: 'http://localhost:5000/api/v1/trpc/',
-    }),
-  ],
+	links: [
+		httpBatchLink({
+			// Replace this URL with that of your tRPC server
+			url: 'http://localhost:5000/api/v1/trpc/',
+		}),
+	],
 });
 
 export function trpc(queryClient?: QueryClient) {
-  return svelteQueryWrapper<Router>({
-    client,
-    queryClient
-  });
-};
+	return svelteQueryWrapper<Router>({
+		client,
+		queryClient,
+	});
+}
 ```
 
 Which can then be used in a component as such:
@@ -166,11 +166,11 @@ The main thing that needs to passed in to `svelteQueryWrapper` is the `tRPC` cli
 let browserClient: ReturnType<typeof createTRPCClient<Router>>;
 
 export function trpc(init?: TRPCClientInit) {
-  const isBrowser = typeof window !== 'undefined';
-  if (isBrowser && browserClient) return browserClient;
-  const client = createTRPCClient<Router>({ init });
-  if (isBrowser) browserClient = client;
-  return client;
+	const isBrowser = typeof window !== 'undefined';
+	if (isBrowser && browserClient) return browserClient;
+	const client = createTRPCClient<Router>({ init });
+	if (isBrowser) browserClient = client;
+	return client;
 }
 ```
 
@@ -183,14 +183,14 @@ import type { QueryClient } from '@tanstack/svelte-query';
 let browserClient: ReturnType<typeof svelteQueryWrapper<Router>>;
 
 export function trpc(init?: TRPCClientInit, queryClient?: QueryClient) {
-  const isBrowser = typeof window !== 'undefined';
-  if (isBrowser && browserClient) return browserClient;
-  const client = svelteQueryWrapper<Router>({
-    client: createTRPCClient<Router>({ init }),
-    queryClient
-  });
-  if (isBrowser) browserClient = client;
-  return client;
+	const isBrowser = typeof window !== 'undefined';
+	if (isBrowser && browserClient) return browserClient;
+	const client = svelteQueryWrapper<Router>({
+		client: createTRPCClient<Router>({ init }),
+		queryClient,
+	});
+	if (isBrowser) browserClient = client;
+	return client;
 }
 ```
 
@@ -214,16 +214,17 @@ import { trpc } from '$lib/trpc/client';
 import type { PageLoad } from './$types';
 
 export const load = (async (event) => {
-  const { queryClient } = await event.parent();
-  const client = trpc(event, queryClient);
-  
-  return {
-    foo: await client.greeting.createServerQuery('foo'),
-    queries: await client.createServerQueries((t) =>
-      ['bar', 'baz'].map((name) => t.greeting(name, { ssr: name !== 'baz' })), // pre-fetching disabled for the `baz` query.
-    ),
-  };
-}) satisfies PageLoad
+	const { queryClient } = await event.parent();
+	const client = trpc(event, queryClient);
+
+	return {
+		foo: await client.greeting.createServerQuery('foo'),
+		queries: await client.createServerQueries(
+			(t) =>
+				['bar', 'baz'].map((name) => t.greeting(name, { ssr: name !== 'baz' })) // pre-fetching disabled for the `baz` query.
+		),
+	};
+}) satisfies PageLoad;
 ```
 
 Then, in the component:
@@ -318,6 +319,8 @@ You can also optionally pass new inputs to the queries and infinite queries from
   </form>
 </div>
 ```
+
+For more usage examples, you can refer to the [example app provided in the repo](/@example).
 
 [npm-url]: https://npmjs.org/package/trpc-svelte-query-adapter
 [npm-image]: https://img.shields.io/npm/v/trpc-svelte-query-adapter.svg
