@@ -7,7 +7,6 @@
 	import { page } from '$app/stores';
 	import { trpc } from '$lib/trpc/client';
 	import { writable } from 'svelte/store';
-	import type { InferProcedureOpts } from 'trpc-svelte-query-adapter';
 
 	const api = trpc($page);
 	const utils = api.createUtils();
@@ -15,10 +14,11 @@
 	let todoInput: HTMLInputElement;
 
 	const filter = writable<string | undefined>();
-	const opts = writable({
-		refetchInterval: Infinity,
-	} satisfies InferProcedureOpts<typeof api.todos.get.createQuery>);
-
+	const opts = writable(
+		api.todos.get.createQuery.opts({
+			refetchInterval: Infinity,
+		})
+	);
 	const todos = api.todos.get.createQuery(filter, opts);
 
 	const popularTodos = api.todos.getPopular.createInfiniteQuery(

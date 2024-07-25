@@ -4,7 +4,6 @@
 	import { X, Plus } from 'phosphor-svelte';
 	import { writable } from 'svelte/store';
 	import { debounce } from '$lib/utils';
-	import type { InferProcedureOpts } from 'trpc-svelte-query-adapter';
 
 	export let data;
 
@@ -14,9 +13,11 @@
 	let todoInput: HTMLInputElement;
 
 	const filter = writable<string | undefined>();
-	const opts = writable({
-		refetchInterval: Infinity,
-	} satisfies InferProcedureOpts<typeof api.todos.get.createQuery>);
+	const opts = writable(
+		api.todos.get.createQuery.opts({
+			refetchInterval: Infinity,
+		})
+	);
 
 	const todos = data.todos(filter, opts);
 
