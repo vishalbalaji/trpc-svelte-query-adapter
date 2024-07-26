@@ -77,9 +77,6 @@ function hasOwn<T extends object, K extends PropertyKey>(
 	return typeof obj === 'object' && Object.hasOwn(obj as any, prop);
 }
 
-// CREDIT: https://millsp.github.io/ts-toolbelt/modules/function_noinfer.html
-type NoInfer<A> = [A][A extends any ? 0 : never];
-
 // CREDIT: https://stackoverflow.com/a/63448246
 type WithNevers<T, V> = {
 	[K in keyof T]: Exclude<T[K], undefined> extends V
@@ -445,10 +442,9 @@ type CreateQueryProcedure<TInput = any, TOutput = any, TError = any> = {
 			opts?: StoreOrVal<CreateTRPCQueryOptions<TOutput, TError, TData>>
 		): CreateQueryResult<TData, TError>;
 
-		opts: <
-			TData = TOutput,
-			TOpts = CreateTRPCQueryOptions<TOutput, TError, TData>,
-		>(opts: NoInfer<TOpts>) => NoInfer<TOpts>; // prettier-ignore
+		opts: <TData = TOutput>(
+			opts: CreateTRPCQueryOptions<TOutput, TError, TData>
+		) => CreateTRPCQueryOptions<TOutput, TError, TData>; // prettier-ignore
 	};
 
 	[Procedure.serverQuery]: <TData = TOutput>(
@@ -493,10 +489,9 @@ type CreateInfiniteQueryProcedure<TInput = any, TOutput = any, TError = any> = {
 			TError
 		>;
 
-		opts: <
-			TData = TOutput,
-			TOpts = CreateTRPCInfiniteQueryOptions<TInput, TOutput, TError, TData>,
-		>(opts: NoInfer<TOpts>) => NoInfer<TOpts>; // prettier-ignore
+		opts: <TData = TOutput>(
+			opts: CreateTRPCInfiniteQueryOptions<TInput, TOutput, TError, TData>
+		) => CreateTRPCInfiniteQueryOptions<TInput, TOutput, TError, TData>; // prettier-ignore
 	};
 
 	[Procedure.serverInfiniteQuery]: <TData = TOutput>(
@@ -540,9 +535,9 @@ type CreateMutationProcedure<
 			opts?: CreateMutationOptions<TOutput, TError, TInput, TContext>
 		): CreateMutationResult<TOutput, TError, TInput, TContext>;
 
-		opts: <
-			TOpts = CreateMutationOptions<TOutput, TError, TInput, TContext>
-		>(opts: NoInfer<TOpts>) => NoInfer<TOpts>; // prettier-ignore
+		opts: (
+			opts: CreateMutationOptions<TOutput, TError, TInput, TContext>
+		) => CreateMutationOptions<TOutput, TError, TInput, TContext>; // prettier-ignore
 	};
 } & {};
 
@@ -563,9 +558,9 @@ type CreateSubscriptionProcedure<TInput = any, TOutput = any, TError = any> = {
 	[Procedure.subscribe]: {
 		(input: TInput, opts?: CreateSubscriptionOptions<TOutput, TError>): void;
 
-		opts: <
-			TOpts = CreateSubscriptionOptions<TOutput, TError>
-		>(opts: NoInfer<TOpts>) => NoInfer<TOpts>; // prettier-ignore
+		opts: (
+			opts: CreateSubscriptionOptions<TOutput, TError>
+		) => CreateSubscriptionOptions<TOutput, TError>; // prettier-ignore
 	};
 } & {};
 
