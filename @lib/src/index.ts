@@ -437,14 +437,21 @@ type CreateTRPCQueryOptions<
 
 type CreateQueryProcedure<TInput = any, TOutput = any, TError = any> = {
 	[Procedure.query]: {
-		<TData = TOutput>(
+		<TData = TOutput, TLazy extends boolean = false>(
 			input: StoreOrVal<TInput>,
-			opts?: StoreOrVal<CreateTRPCQueryOptions<TOutput, TError, TData>>
-		): CreateQueryResult<TData, TError>;
+			opts?: StoreOrVal<
+				CreateTRPCQueryOptions<TOutput, TError, TData> & { lazy?: TLazy }
+			>
+		): TLazy extends true
+			? [
+					CreateQueryResult<TData, TError>,
+					(data?: Promise<TData>) => Promise<void>,
+				]
+			: CreateQueryResult<TData, TError>;
 
-		opts: <TData = TOutput>(
-			opts: CreateTRPCQueryOptions<TOutput, TError, TData>
-		) => CreateTRPCQueryOptions<TOutput, TError, TData>; // prettier-ignore
+		opts: <TData = TOutput, TLazy extends boolean = false>(
+			opts: CreateTRPCQueryOptions<TOutput, TError, TData> & { lazy?: TLazy }
+		) => CreateTRPCQueryOptions<TOutput, TError, TData> & { lazy?: TLazy }; // prettier-ignore
 	};
 
 	[Procedure.serverQuery]: <TData = TOutput>(
@@ -808,18 +815,20 @@ const procedures: Record<PropertyKey, (ctx: WrapperContext) => any> = {
 	[Procedure.queryKey]: ({ path }) => {
 		return (input: any, opts?: any) => getArrayQueryKey(path, input, opts);
 	},
-	[Procedure.query]: ({ path, client, abortOnUnmount }) => {
+	[Procedure.query]: ({ path, client, abortOnUnmount, queryClient }) => {
 		return (input: any, opts?: any) => {
 			const isOptsStore = isSvelteStore(opts);
 			const isInputStore = isSvelteStore(input);
 			const currentOpts = isOptsStore ? get(opts) : opts;
 
-			if (!isInputStore && !isOptsStore) {
+			const queryKey = getArrayQueryKey(path, input, 'query');
+
+			if (!isInputStore && !isOptsStore && !currentOpts?.lazy) {
 				const shouldAbortOnUnmount =
 					opts?.trpc?.abortOnUnmount ?? abortOnUnmount;
 				return createQuery({
 					...opts,
-					queryKey: getArrayQueryKey(path, input, 'query'),
+					queryKey,
 					queryFn: ({ signal }) =>
 						client.query(path.join('.'), input, {
 							...(shouldAbortOnUnmount && { signal }),
@@ -829,11 +838,16 @@ const procedures: Record<PropertyKey, (ctx: WrapperContext) => any> = {
 
 			const shouldAbortOnUnmount =
 				currentOpts?.trpc?.abortOnUnmount ?? abortOnUnmount;
+			const enabled = currentOpts?.lazy ? writable(false) : blankStore;
 
-			return createQuery(
+			const query = createQuery(
 				derived(
-					[isInputStore ? input : blankStore, isOptsStore ? opts : blankStore],
-					([$input, $opts]) => {
+					[
+						isInputStore ? input : blankStore,
+						isOptsStore ? opts : blankStore,
+						enabled,
+					],
+					([$input, $opts, $enabled]) => {
 						const newInput = !isBlank($input) ? $input : input;
 						const newOpts = !isBlank($opts) ? $opts : opts;
 						return {
@@ -843,10 +857,25 @@ const procedures: Record<PropertyKey, (ctx: WrapperContext) => any> = {
 								client.query(path.join('.'), newInput, {
 									...(shouldAbortOnUnmount && { signal }),
 								}),
+							...(!isBlank($enabled) && {
+								enabled: $enabled && (newOpts?.enabled ?? true),
+							}),
 						} satisfies CreateQueryOptions;
 					}
 				)
 			);
+
+			return currentOpts?.lazy
+				? [
+						query,
+						async (data?: any) => {
+							if (data) {
+								queryClient.setQueryData(queryKey, await data);
+							}
+							(enabled as Writable<boolean>).set(true);
+						},
+					]
+				: query;
 		};
 	},
 	[Procedure.serverQuery]: ({ path, client, queryClient, abortOnUnmount }) => {
