@@ -4,9 +4,7 @@
 
 <div style="display:flex;flex-direction:column;gap:2rem;">
 	<div style="display:flex;align-items:center;justify-content:space-between;">
-		<Heading prefix={false}>
-			tRPC - Svelte-Query Adapter Demo
-		</Heading>
+		<Heading prefix={false}>tRPC - Svelte-Query Adapter Demo</Heading>
 	</div>
 
 	<div>
@@ -14,6 +12,7 @@
 		<ul>
 			<li><a href="/client-only">Client-only</a></li>
 			<li><a href="/ssr">SSR</a></li>
+			<li><a href="/ssr-with-streaming">SSR with Streaming</a></li>
 		</ul>
 	</div>
 </div>
