@@ -228,8 +228,10 @@ type QueryUtils<TInput = undefined, TOutput = undefined, TError = undefined> = {
 	[Util.Query.setInfiniteData](
 		input: TInput,
 		updater: Updater<
-			InfiniteData<TOutput> | undefined,
-			InfiniteData<TOutput> | undefined
+			| InfiniteData<TOutput, NonNullable<ExtractCursorType<TInput>> | null>
+			| undefined,
+			| InfiniteData<TOutput, NonNullable<ExtractCursorType<TInput>> | null>
+			| undefined
 		>,
 		options?: SetDataOptions
 	): void;
@@ -486,15 +488,25 @@ type CreateTRPCInfiniteQueryOptions<
 
 type CreateInfiniteQueryProcedure<TInput = any, TOutput = any, TError = any> = {
 	[Procedure.infiniteQuery]: {
-		<TData = TOutput>(
+		<TData = TOutput, TLazy extends boolean = false>(
 			input: StoreOrVal<Omit<TInput, 'cursor'>>,
 			opts: StoreOrVal<
-				CreateTRPCInfiniteQueryOptions<TInput, TOutput, TError, TData>
+				CreateTRPCInfiniteQueryOptions<TInput, TOutput, TError, TData> & {
+					lazy?: TLazy;
+				}
 			>
-		): CreateInfiniteQueryResult<
-			InfiniteData<TData, NonNullable<ExtractCursorType<TInput>> | null>,
-			TError
-		>;
+		): TLazy extends true
+			? [
+					CreateInfiniteQueryResult<
+						InfiniteData<TData, NonNullable<ExtractCursorType<TInput>> | null>,
+						TError
+					>,
+					(data?: Promise<TData>) => Promise<void>,
+				]
+			: CreateInfiniteQueryResult<
+					InfiniteData<TData, NonNullable<ExtractCursorType<TInput>> | null>,
+					TError
+				>;
 
 		opts: <TData = TOutput>(
 			opts: CreateTRPCInfiniteQueryOptions<TInput, TOutput, TError, TData>
@@ -939,20 +951,27 @@ const procedures: Record<PropertyKey, (ctx: WrapperContext) => any> = {
 			};
 		};
 	},
-	[Procedure.infiniteQuery]: ({ path, client, abortOnUnmount }) => {
+	[Procedure.infiniteQuery]: ({
+		path,
+		client,
+		abortOnUnmount,
+		queryClient,
+	}) => {
 		return (input: any, opts?: any) => {
 			const isOptsStore = isSvelteStore(opts);
 			const isInputStore = isSvelteStore(input);
 			const currentOpts = isOptsStore ? get(opts) : opts;
 
-			if (!isInputStore && !isOptsStore) {
+			const queryKey = getArrayQueryKey(path, input, 'infinite');
+
+			if (!isInputStore && !isOptsStore && !currentOpts?.lazy) {
 				const shouldAbortOnUnmount =
 					opts?.trpc?.abortOnUnmount ?? abortOnUnmount;
 
 				return createInfiniteQuery({
 					...opts,
 					initialPageParam: opts?.initialCursor ?? null,
-					queryKey: getArrayQueryKey(path, input, 'infinite'),
+					queryKey,
 					queryFn: ({ pageParam, signal }) =>
 						client.query(
 							path.join('.'),
@@ -964,11 +983,16 @@ const procedures: Record<PropertyKey, (ctx: WrapperContext) => any> = {
 
 			const shouldAbortOnUnmount =
 				currentOpts?.trpc?.abortOnUnmount ?? abortOnUnmount;
+			const enabled = currentOpts?.lazy ? writable(false) : blankStore;
 
-			return createInfiniteQuery(
+			const query = createInfiniteQuery(
 				derived(
-					[isInputStore ? input : blankStore, isOptsStore ? opts : blankStore],
-					([$input, $opts]) => {
+					[
+						isInputStore ? input : blankStore,
+						isOptsStore ? opts : blankStore,
+						enabled,
+					],
+					([$input, $opts, $enabled]) => {
 						const newInput = !isBlank($input) ? $input : input;
 						const newOpts = !isBlank($opts) ? $opts : opts;
 
@@ -981,10 +1005,28 @@ const procedures: Record<PropertyKey, (ctx: WrapperContext) => any> = {
 									{ ...newInput, cursor: pageParam ?? newOpts?.initialCursor },
 									{ ...(shouldAbortOnUnmount && { signal }) }
 								),
+							...(!isBlank($enabled) && {
+								enabled: $enabled && (newOpts?.enabled ?? true),
+							}),
 						} satisfies CreateInfiniteQueryOptions;
 					}
 				)
 			);
+
+			return currentOpts?.lazy
+				? [
+						query,
+						async (data?: any) => {
+							if (data) {
+								queryClient.setQueryData(queryKey, {
+									pages: [await data],
+									pageParams: [currentOpts?.initialCursor ?? null],
+								});
+							}
+							(enabled as Writable<boolean>).set(true);
+						},
+					]
+				: query;
 		};
 	},
 	[Procedure.serverInfiniteQuery]: ({
@@ -1260,6 +1302,8 @@ export function svelteQueryWrapper<TRouter extends AnyRouter>({
 			},
 			apply(_target, _thisArg, argList) {
 				const key = this.path.pop() ?? '';
+
+				if (key === '_def') return { path: this.path };
 
 				if (hasOwn(procedures, key)) {
 					return procedures[key]({

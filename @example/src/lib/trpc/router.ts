@@ -1,9 +1,10 @@
-import type { Context } from '$lib/trpc/context';
+import { createContext, type Context } from '$lib/trpc/context';
 import { initTRPC } from '@trpc/server';
 import { z } from 'zod';
 
 import { todo } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
+import type { RequestEvent } from '../../routes/(app)/ssr2/$types';
 
 export const t = initTRPC.context<Context>().create();
 
@@ -75,6 +76,9 @@ export const router = t.router({
 	}),
 });
 
-export const createCaller = t.createCallerFactory(router);
+const factory = t.createCallerFactory(router);
+export const createCaller = async (event: RequestEvent) => {
+	return factory(await createContext(event));
+};
 
 export type Router = typeof router;
