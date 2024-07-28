@@ -70,10 +70,23 @@ const blankStore: Readable<typeof blank> = {
 	},
 };
 
-function hasOwn<T extends object, K extends PropertyKey>(
-	obj: T,
-	prop: K
-): obj is T & Record<K, unknown> {
+type ValueOf<T> = T[keyof T];
+
+type ExhaustiveRecord<
+	TKey extends PropertyKey,
+	TValue = any,
+	U extends
+		| (
+				{ [K in TKey]: TValue } &
+				{ [K in keyof U]: K extends TKey ? TValue : never; }
+			)
+		| undefined
+	= undefined,
+> = U extends undefined ? { [K in TKey]: TValue }
+	: U extends { [K in TKey]: TValue } ? U
+	: never; // prettier-ignore
+
+function hasOwn<T extends object>(obj: T, prop: PropertyKey): prop is keyof T {
 	return typeof obj === 'object' && Object.hasOwn(obj as any, prop);
 }
 
@@ -136,7 +149,11 @@ const Util = {
 } as const;
 
 // createUtils
-type QueryUtils<TInput = undefined, TOutput = undefined, TError = undefined> = {
+type QueryUtils<
+	TInput = undefined,
+	TOutput = undefined,
+	TError = undefined
+> = ExhaustiveRecord<Exclude<ValueOf<typeof Util.Query>, 'client'>, any, {
 	/**
 	 * @link https://tanstack.com/query/v4/docs/reference/QueryClient#queryclientfetchquery
 	 */
@@ -247,13 +264,13 @@ type QueryUtils<TInput = undefined, TOutput = undefined, TError = undefined> = {
 	[Util.Query.getInfiniteData](
 		input?: TInput
 	): InfiniteData<TOutput> | undefined;
-};
+}>; // prettier-ignore
 
 type MutationUtils<
 	TInput = undefined,
 	TOutput = undefined,
 	TError = undefined,
-> = {
+> = ExhaustiveRecord<ValueOf<typeof Util.Mutation>, any, {
 	[Util.Mutation.setMutationDefaults](
 		opts:
 			| CreateMutationOptions<TInput, TOutput, TError>
@@ -269,7 +286,7 @@ type MutationUtils<
 		| undefined;
 
 	[Util.Mutation.isMutating](): number;
-};
+}>; // prettier-ignore
 
 type AddUtilsPropTypes<TClient, TError> = {
 	[K in keyof TClient]:
@@ -612,6 +629,7 @@ type AddQueryPropTypes<TClient, TError> =
 type UntypedClient = TRPCUntypedClient<AnyRouter>;
 
 interface WrapperContext {
+	baseClient: CreateTRPCProxyClient<AnyRouter>;
 	client: UntypedClient;
 	queryClient: QueryClient;
 	path: string[];
@@ -643,13 +661,9 @@ function createQueriesProxy({ client, abortOnUnmount }: WrapperContext) {
 	);
 }
 
-const utilsProcedures: Record<
-	PropertyKey,
-	(ctx: {
-		path: string[];
-		queryClient: QueryClient;
-		client: UntypedClient;
-	}) => any
+const utilProcedures: Record<
+	Exclude<ValueOf<typeof Util.Query>, 'client'> | ValueOf<typeof Util.Mutation>,
+	(ctx: WrapperContext) => any
 > = {
 	[Util.Query.fetch]: ({ path, queryClient, client }) => {
 		return (input: any, opts?: any) => {
@@ -802,19 +816,15 @@ const utilsProcedures: Record<
 	},
 };
 
-function createUtilsProxy({ client, queryClient }: WrapperContext) {
+function createUtilsProxy(ctx: WrapperContext) {
 	return new DeepProxy(
 		{},
 		{
 			get(_target, key, _receiver) {
-				if (key === Util.Query.client) return client;
+				if (key === Util.Query.client) return ctx.baseClient;
 
-				if (hasOwn(utilsProcedures, key)) {
-					return utilsProcedures[key]({
-						path: this.path,
-						client,
-						queryClient,
-					});
+				if (hasOwn(utilProcedures, key)) {
+					return utilProcedures[key](ctx);
 				}
 
 				return this.nest(() => {});
@@ -823,7 +833,10 @@ function createUtilsProxy({ client, queryClient }: WrapperContext) {
 	);
 }
 
-const procedures: Record<PropertyKey, (ctx: WrapperContext) => any> = {
+const procedures: Record<
+	ValueOf<typeof Procedure>,
+	(ctx: WrapperContext) => any
+> = {
 	[Procedure.queryKey]: ({ path }) => {
 		return (input: any, opts?: any) => getArrayQueryKey(path, input, opts);
 	},
@@ -1002,7 +1015,10 @@ const procedures: Record<PropertyKey, (ctx: WrapperContext) => any> = {
 							queryFn: ({ pageParam, signal }) =>
 								client.query(
 									path.join('.'),
-									{ ...newInput, cursor: pageParam ?? newOpts?.initialCursor },
+									{
+										...newInput,
+										cursor: pageParam ?? newOpts?.initialCursor,
+									},
 									{ ...(shouldAbortOnUnmount && { signal }) }
 								),
 							...(!isBlank($enabled) && {
@@ -1205,10 +1221,7 @@ const procedures: Record<PropertyKey, (ctx: WrapperContext) => any> = {
 	},
 };
 
-const procedureExts: Record<
-	PropertyKey,
-	Record<PropertyKey, (...args: any[]) => any>
-> = {
+const procedureExts = {
 	[Procedure.query]: {
 		opts: (opts: unknown) => opts,
 	},
@@ -1300,13 +1313,14 @@ export function svelteQueryWrapper<TRouter extends AnyRouter>({
 			get() {
 				return this.nest(() => {});
 			},
-			apply(_target, _thisArg, argList) {
+			apply(_target, _thisArg, argList: [any]) {
 				const key = this.path.pop() ?? '';
 
 				if (key === '_def') return { path: this.path };
 
 				if (hasOwn(procedures, key)) {
 					return procedures[key]({
+						baseClient: client as any,
 						client: innerClient,
 						path: this.path,
 						queryClient,
