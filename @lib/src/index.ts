@@ -14,6 +14,7 @@ import {
 	createInfiniteQuery,
 	createQueries,
 	skipToken,
+	hashKey,
 	type CreateQueryOptions,
 	type CreateMutationOptions,
 	type CreateInfiniteQueryOptions,
@@ -39,7 +40,6 @@ import {
 	type DefaultError,
 	type OmitKeyof,
 	type QueriesPlaceholderDataFunction,
-	hashKey,
 } from '@tanstack/svelte-query';
 
 import { afterUpdate, onDestroy, onMount } from 'svelte';
@@ -51,8 +51,6 @@ import {
 	type Writable,
 } from 'svelte/store';
 
-type StoreOrVal<T> = _StoreOrVal<T> | Writable<T>;
-
 /**
  * Omits the key without removing a potential union
  * @internal
@@ -60,25 +58,6 @@ type StoreOrVal<T> = _StoreOrVal<T> | Writable<T>;
 type DistributiveOmit<TObj, TKey extends keyof any> = TObj extends any
 	? Omit<TObj, TKey>
 	: never;
-
-function isSvelteStore<T extends object>(
-	obj: StoreOrVal<T>
-): obj is Readable<T> {
-	return (
-		typeof obj === 'object' &&
-		'subscribe' in obj &&
-		typeof obj.subscribe === 'function'
-	);
-}
-
-const blank = Symbol('blank');
-const isBlank = (val: unknown): val is typeof blank => val === blank;
-const blankStore: Readable<typeof blank> = {
-	subscribe(run) {
-		run(blank);
-		return () => {};
-	},
-};
 
 type ValueOf<T> = T[keyof T];
 
@@ -96,9 +75,7 @@ type ExhaustiveRecord<
 	: U extends { [K in TKey]: TValue } ? U
 	: never; // prettier-ignore
 
-function hasOwn<T extends object>(obj: T, prop: PropertyKey): prop is keyof T {
-	return typeof obj === 'object' && Object.hasOwn(obj as any, prop);
-}
+type StoreOrVal<T> = _StoreOrVal<T> | Writable<T>;
 
 // CREDIT: https://stackoverflow.com/a/63448246
 type WithNevers<T, V> = {
@@ -118,6 +95,37 @@ type HasQuery = { query: (...args: any[]) => any };
 type HasMutate = { mutate: (...args: any[]) => any };
 type HasSubscribe = { subscribe: (...args: any[]) => any };
 type OnlyQueries<TClient> = Without<TClient, HasMutate | HasSubscribe>;
+
+function isSvelteStore<T extends object>(
+	obj: StoreOrVal<T>
+): obj is Readable<T> {
+	return (
+		typeof obj === 'object' &&
+		'subscribe' in obj &&
+		typeof obj.subscribe === 'function'
+	);
+}
+
+/**
+ * Check that value is object
+ * @internal
+ */
+function isObject(value: unknown): value is Record<string, unknown> {
+	return !!value && !Array.isArray(value) && typeof value === 'object';
+}
+
+const blank = Symbol('blank');
+const isBlank = (val: unknown): val is typeof blank => val === blank;
+const blankStore: Readable<typeof blank> = {
+	subscribe(run) {
+		run(blank);
+		return () => {};
+	},
+};
+
+function hasOwn<T extends object>(obj: T, prop: PropertyKey): prop is keyof T {
+	return typeof obj === 'object' && Object.hasOwn(obj as any, prop);
+}
 
 const Procedure = {
 	query: 'createQuery',
@@ -189,14 +197,6 @@ type QueryKeyKnown<TInput, TType extends Exclude<QueryType, 'any'>> = [
 	{ input?: GetQueryProcedureInput<TInput>; type: TType }?,
 ];
 
-/**
- * Check that value is object
- * @internal
- */
-function isObject(value: unknown): value is Record<string, unknown> {
-	return !!value && !Array.isArray(value) && typeof value === 'object';
-}
-
 function getQueryKeyInternal(
 	path: readonly string[],
 	input: unknown,
@@ -251,10 +251,15 @@ function getMutationKeyInternal(path: readonly string[]) {
 
 type GetQueryKey<TInput = undefined> = [TInput] extends [undefined | void]
 	? {
+			/**
+			 * @deprecated import `getQueryKey` from `trpc-svelte-query-adapter` instead
+			 */
 			[Procedure.queryKey]: () => TRPCQueryKey;
 		}
 	: {
 			/**
+			 * @deprecated import `getQueryKey` from `trpc-svelte-query-adapter` instead
+			 *
 			 * Method to extract the query key for a procedure
 			 * @param type - defaults to `any`
 			 */
@@ -477,6 +482,251 @@ type CreateUtilsProcedure<TClient, TError> = {
 			[Util.Query.client]: TClient;
 		};
 } & {};
+
+const utilProcedures: Record<
+	| Exclude<ValueOf<typeof Util.Query>, 'client'>
+	| ValueOf<typeof Util.Mutation>, // prettier-ignore
+	(ctx: SvelteQueryWrapperContext) => any
+> = {
+	// QueryUtils
+	[Util.Query.fetch]: ({ path, queryClient, client, key }) => {
+		return (input: any, opts?: any) => {
+			const queryKey = getQueryKeyInternal(
+				path,
+				input,
+				getQueryType(key as any)
+			);
+			return queryClient.fetchQuery({
+				...opts,
+				queryKey,
+				queryFn: () => client.query(...getClientArgs(queryKey, opts)),
+			});
+		};
+	},
+	[Util.Query.fetchInfinite]: ({ path, queryClient, client, key }) => {
+		return (input: any, opts?: any) => {
+			const queryKey = getQueryKeyInternal(
+				path,
+				input,
+				getQueryType(key as any)
+			);
+			return queryClient.fetchInfiniteQuery({
+				...opts,
+				queryKey,
+				queryFn: ({ pageParam, direction }) => {
+					return client.query(
+						...getClientArgs(queryKey, opts, { pageParam, direction })
+					);
+				},
+				initialPageParam: opts?.initialCursor ?? null,
+			});
+		};
+	},
+	[Util.Query.prefetch]: ({ path, queryClient, client, key }) => {
+		return (input: any, opts?: any) => {
+			const queryKey = getQueryKeyInternal(
+				path,
+				input,
+				getQueryType(key as any)
+			);
+			return queryClient.prefetchQuery({
+				...opts,
+				queryKey,
+				queryFn: () => client.query(...getClientArgs(queryKey, opts)),
+			});
+		};
+	},
+	[Util.Query.prefetchInfinite]: ({ path, queryClient, client, key }) => {
+		return (input: any, opts?: any) => {
+			const queryKey = getQueryKeyInternal(
+				path,
+				input,
+				getQueryType(key as any)
+			);
+			return queryClient.prefetchInfiniteQuery({
+				...opts,
+				queryKey,
+				queryFn: ({ pageParam, direction }) => {
+					return client.query(
+						...getClientArgs(queryKey, opts, { pageParam, direction })
+					);
+				},
+				initialPageParam: opts?.initialCursor ?? null,
+			});
+		};
+	},
+	[Util.Query.ensureData]: ({ path, queryClient, client, key }) => {
+		return (input: any, opts?: any) => {
+			const queryKey = getQueryKeyInternal(
+				path,
+				input,
+				getQueryType(key as any)
+			);
+			return queryClient.ensureQueryData({
+				...opts,
+				queryKey,
+				queryFn: () => client.query(...getClientArgs(queryKey, opts)),
+			});
+		};
+	},
+	[Util.Query.invalidate]: ({ path, queryClient, key }) => {
+		return (input?: any, filters?: any, options?: any) => {
+			console.log(path, input, getQueryType(key as any));
+			const queryKey = getQueryKeyInternal(
+				path,
+				input,
+				getQueryType(key as any)
+			);
+			return queryClient.invalidateQueries(
+				{
+					...filters,
+					queryKey,
+				},
+				options
+			);
+		};
+	},
+	[Util.Query.reset]: ({ queryClient, path, key }) => {
+		return (input?: any, filters?: any, options?: any) => {
+			const queryKey = getQueryKeyInternal(
+				path,
+				input,
+				getQueryType(key as any)
+			);
+			return queryClient.resetQueries(
+				{
+					...filters,
+					queryKey,
+				},
+				options
+			);
+		};
+	},
+	[Util.Query.refetch]: ({ path, queryClient, key }) => {
+		return (input?: any, filters?: any, options?: any) => {
+			const queryKey = getQueryKeyInternal(
+				path,
+				input,
+				getQueryType(key as any)
+			);
+			return queryClient.refetchQueries(
+				{
+					...filters,
+					queryKey,
+				},
+				options
+			);
+		};
+	},
+	[Util.Query.cancel]: ({ path, queryClient, key }) => {
+		return (input?: any, options?: any) => {
+			const queryKey = getQueryKeyInternal(
+				path,
+				input,
+				getQueryType(key as any)
+			);
+			return queryClient.cancelQueries(
+				{
+					queryKey,
+				},
+				options
+			);
+		};
+	},
+	[Util.Query.setData]: ({ queryClient, path, key }) => {
+		return (input: any, updater: any, options?: any) => {
+			const queryKey = getQueryKeyInternal(
+				path,
+				input,
+				getQueryType(key as any)
+			);
+			return queryClient.setQueryData(queryKey, updater as any, options);
+		};
+	},
+	[Util.Query.setInfiniteData]: ({ queryClient, path, key }) => {
+		return (input: any, updater: any, options?: any) => {
+			const queryKey = getQueryKeyInternal(
+				path,
+				input,
+				getQueryType(key as any)
+			);
+			return queryClient.setQueryData(queryKey, updater as any, options);
+		};
+	},
+	[Util.Query.getData]: ({ queryClient, path, key }) => {
+		return (input?: any) => {
+			const queryKey = getQueryKeyInternal(
+				path,
+				input,
+				getQueryType(key as any)
+			);
+			return queryClient.getQueryData(queryKey);
+		};
+	},
+	[Util.Query.getInfiniteData]: ({ queryClient, path, key }) => {
+		return (input?: any) => {
+			const queryKey = getQueryKeyInternal(
+				path,
+				input,
+				getQueryType(key as any)
+			);
+			return queryClient.getQueryData(queryKey);
+		};
+	},
+
+	// MutationUtils
+	[Util.Mutation.setMutationDefaults]: ({
+		queryClient,
+		path: _path,
+		client,
+	}) => {
+		return (options: any) => {
+			const mutationKey = getMutationKeyInternal(_path);
+			const path = mutationKey[0];
+			const canonicalMutationFn = (input: unknown) => {
+				return client.mutation(...getClientArgs([path, { input }], {}));
+			};
+			return queryClient.setMutationDefaults(
+				mutationKey,
+				typeof options === 'function'
+					? options({ canonicalMutationFn })
+					: options
+			);
+		};
+	},
+	[Util.Mutation.getMutationDefaults]: ({ queryClient, path }) => {
+		return () => {
+			return queryClient.getMutationDefaults(getMutationKeyInternal(path));
+		};
+	},
+	[Util.Mutation.isMutating]: ({ queryClient, path }) => {
+		return () => {
+			return queryClient.isMutating({
+				mutationKey: getMutationKeyInternal(path),
+				exact: true,
+			});
+		};
+	},
+};
+
+function createUtilsProxy(ctx: SvelteQueryWrapperContext) {
+	return new DeepProxy(
+		{},
+		{
+			get(_target, key, _receiver) {
+				if (key === Util.Query.client) return ctx.baseClient;
+
+				if (hasOwn(utilProcedures, key)) {
+					return utilProcedures[key](
+						Object.assign(ctx, { key, path: this.path })
+					);
+				}
+
+				return this.nest(() => {});
+			},
+		}
+	);
+}
 
 // createQueries
 // REFER: https://github.com/trpc/trpc/blob/936db6dd2598337758e29c843ff66984ed54faaf/packages/react-query/src/internals/useQueries.ts#L33
@@ -708,11 +958,13 @@ type CreateInfiniteQueryProcedure<TInput = any, TOutput = any, TError = any> = {
 	>;
 };
 
-type QueryProcedures<TInput, TOutput, TError> = GetQueryKey<TInput> &
-	CreateQueryProcedure<TInput, TOutput, TError> &
-	(TInput extends { cursor?: any }
-		? CreateInfiniteQueryProcedure<TInput, TOutput, TError>
-		: {});
+type QueryProcedures<TInput, TOutput, TError> =
+		CreateQueryProcedure<TInput, TOutput, TError>
+	& (TInput extends { cursor?: any }
+			? CreateInfiniteQueryProcedure<TInput, TOutput, TError>
+			: {})
+	& GetQueryKey<TInput>
+; // prettier-ignore
 
 type CreateMutationProcedure<
 	TInput = any,
@@ -754,74 +1006,37 @@ type CreateSubscriptionProcedure<TInput = any, TOutput = any, TError = any> = {
 	};
 } & {};
 
-type AddQueryPropTypes<TClient, TError> =
-	TClient extends Record<any, any>
-		? {
-				[K in keyof TClient]: TClient[K] extends HasQuery
-					? QueryProcedures<
-							Parameters<TClient[K]['query']>[0],
-							Awaited<ReturnType<TClient[K]['query']>>,
-							TError
-						> & {}
-					: TClient[K] extends HasMutate
-						? CreateMutationProcedure<
-								Parameters<TClient[K]['mutate']>[0],
-								Awaited<ReturnType<TClient[K]['mutate']>>,
-								TError
-							>
-						: TClient[K] extends HasSubscribe
-							? CreateSubscriptionProcedure<
-									Parameters<TClient[K]['subscribe']>[0],
-									GetSubscriptionOutput<Parameters<TClient[K]['subscribe']>[1]>,
-									TError
-								>
-							: GetQueryKey & AddQueryPropTypes<TClient[K], TError>;
-			}
-		: TClient;
+type AddQueryPropTypes<TClient = any, TError = any> = {
+	[K in keyof TClient]: TClient[K] extends HasQuery
+		? QueryProcedures<
+				Parameters<TClient[K]['query']>[0],
+				Awaited<ReturnType<TClient[K]['query']>>,
+				TError
+			> & {}
+		: TClient[K] extends HasMutate
+			? CreateMutationProcedure<
+					Parameters<TClient[K]['mutate']>[0],
+					Awaited<ReturnType<TClient[K]['mutate']>>,
+					TError
+				>
+			: TClient[K] extends HasSubscribe
+				? CreateSubscriptionProcedure<
+						Parameters<TClient[K]['subscribe']>[0],
+						GetSubscriptionOutput<Parameters<TClient[K]['subscribe']>[1]>,
+						TError
+					>
+				: AddQueryPropTypes<TClient[K], TError> & GetQueryKey;
+};
 
-// Implementation
 type UntypedClient = TRPCUntypedClient<AnyRouter>;
 
-interface WrapperContext {
+interface SvelteQueryWrapperContext {
 	baseClient: CreateTRPCProxyClient<AnyRouter>;
 	client: UntypedClient;
 	queryClient: QueryClient;
 	path: string[];
 	key: string;
 	abortOnUnmount?: boolean;
-}
-
-function createQueriesProxy({ client, abortOnUnmount }: WrapperContext) {
-	return new DeepProxy(
-		{},
-		{
-			get() {
-				return this.nest(() => {});
-			},
-			apply(_target, _thisArg, argList) {
-				const [input, opts] = argList;
-
-				const shouldAbortOnUnmount =
-					opts?.trpc?.abortOnUnmount ?? abortOnUnmount;
-
-				const queryKey = getQueryKeyInternal(this.path, input, 'query');
-
-				return {
-					...opts,
-					queryKey,
-					queryFn: ({ signal }) =>
-						client.query(
-							...getClientArgs(queryKey, {
-								trpc: {
-									...opts?.trpc,
-									...(shouldAbortOnUnmount && { signal }),
-								},
-							})
-						),
-				} satisfies CreateQueryOptions;
-			},
-		}
-	);
 }
 
 function getQueryType(
@@ -855,245 +1070,34 @@ function getQueryType(
 	}
 }
 
-const utilProcedures: Record<
-	Exclude<ValueOf<typeof Util.Query>, 'client'> | ValueOf<typeof Util.Mutation>,
-	(ctx: WrapperContext) => any
-> = {
-	// QueryUtils
-	[Util.Query.fetch]: ({ path, queryClient, client, key }) => {
-		return (input: any, opts?: any) => {
-			const queryKey = getQueryKeyInternal(
-				path,
-				input,
-				getQueryType(key as any)
-			);
-			return queryClient.fetchQuery({
-				...opts,
-				queryKey,
-				queryFn: () => client.query(...getClientArgs(queryKey, opts)),
-			});
-		};
-	},
-	[Util.Query.fetchInfinite]: ({ path, queryClient, client, key }) => {
-		return (input: any, opts?: any) => {
-			const queryKey = getQueryKeyInternal(
-				path,
-				input,
-				getQueryType(key as any)
-			);
-			return queryClient.fetchInfiniteQuery({
-				...opts,
-				queryKey,
-				queryFn: ({ pageParam, direction }) => {
-					return client.query(
-						...getClientArgs(queryKey, opts, { pageParam, direction })
-					);
-				},
-				initialPageParam: opts?.initialCursor ?? null,
-			});
-		};
-	},
-	[Util.Query.prefetch]: ({ path, queryClient, client, key }) => {
-		return (input: any, opts?: any) => {
-			const queryKey = getQueryKeyInternal(
-				path,
-				input,
-				getQueryType(key as any)
-			);
-			return queryClient.prefetchQuery({
-				...opts,
-				queryKey,
-				queryFn: () => client.query(...getClientArgs(queryKey, opts)),
-			});
-		};
-	},
-	[Util.Query.prefetchInfinite]: ({ path, queryClient, client, key }) => {
-		return (input: any, opts?: any) => {
-			const queryKey = getQueryKeyInternal(
-				path,
-				input,
-				getQueryType(key as any)
-			);
-			return queryClient.prefetchInfiniteQuery({
-				...opts,
-				queryKey,
-				queryFn: ({ pageParam, direction }) => {
-					return client.query(
-						...getClientArgs(queryKey, opts, { pageParam, direction })
-					);
-				},
-				initialPageParam: opts?.initialCursor ?? null,
-			});
-		};
-	},
-	[Util.Query.ensureData]: ({ path, queryClient, client, key }) => {
-		return (input: any, opts?: any) => {
-			const queryKey = getQueryKeyInternal(
-				path,
-				input,
-				getQueryType(key as any)
-			);
-			return queryClient.ensureQueryData({
-				...opts,
-				queryKey,
-				queryFn: () => client.query(...getClientArgs(queryKey, opts)),
-			});
-		};
-	},
-	[Util.Query.invalidate]: ({ path, queryClient, key }) => {
-		return (input?: any, filters?: any, options?: any) => {
-			console.log(path, input, getQueryType(key as any));
-			const queryKey = getQueryKeyInternal(
-				path,
-				input,
-				getQueryType(key as any)
-			);
-			return queryClient.invalidateQueries(
-				{
-					...filters,
-					queryKey,
-				},
-				options
-			);
-		};
-	},
-	[Util.Query.reset]: ({ queryClient, path, key }) => {
-		return (input?: any, filters?: any, options?: any) => {
-			const queryKey = getQueryKeyInternal(
-				path,
-				input,
-				getQueryType(key as any)
-			);
-			return queryClient.resetQueries(
-				{
-					...filters,
-					queryKey,
-				},
-				options
-			);
-		};
-	},
-	[Util.Query.refetch]: ({ path, queryClient, key }) => {
-		return (input?: any, filters?: any, options?: any) => {
-			const queryKey = getQueryKeyInternal(
-				path,
-				input,
-				getQueryType(key as any)
-			);
-			return queryClient.refetchQueries(
-				{
-					...filters,
-					queryKey,
-				},
-				options
-			);
-		};
-	},
-	[Util.Query.cancel]: ({ path, queryClient, key }) => {
-		return (input?: any, options?: any) => {
-			const queryKey = getQueryKeyInternal(
-				path,
-				input,
-				getQueryType(key as any)
-			);
-			return queryClient.cancelQueries(
-				{
-					queryKey,
-				},
-				options
-			);
-		};
-	},
-	[Util.Query.setData]: ({ queryClient, path, key }) => {
-		return (input: any, updater: any, options?: any) => {
-			const queryKey = getQueryKeyInternal(
-				path,
-				input,
-				getQueryType(key as any)
-			);
-			return queryClient.setQueryData(queryKey, updater as any, options);
-		};
-	},
-	[Util.Query.setInfiniteData]: ({ queryClient, path, key }) => {
-		return (input: any, updater: any, options?: any) => {
-			const queryKey = getQueryKeyInternal(
-				path,
-				input,
-				getQueryType(key as any)
-			);
-			return queryClient.setQueryData(queryKey, updater as any, options);
-		};
-	},
-	[Util.Query.getData]: ({ queryClient, path, key }) => {
-		return (input?: any) => {
-			const queryKey = getQueryKeyInternal(
-				path,
-				input,
-				getQueryType(key as any)
-			);
-			return queryClient.getQueryData(queryKey);
-		};
-	},
-	[Util.Query.getInfiniteData]: ({ queryClient, path, key }) => {
-		return (input?: any) => {
-			const queryKey = getQueryKeyInternal(
-				path,
-				input,
-				getQueryType(key as any)
-			);
-			return queryClient.getQueryData(queryKey);
-		};
-	},
-
-	// MutationUtils
-	[Util.Mutation.setMutationDefaults]: ({
-		queryClient,
-		path: _path,
-		client,
-	}) => {
-		return (options: any) => {
-			const mutationKey = getMutationKeyInternal(_path);
-			const path = mutationKey[0];
-			const canonicalMutationFn = (input: unknown) => {
-				return client.mutation(...getClientArgs([path, { input }], {}));
-			};
-			return queryClient.setMutationDefaults(
-				mutationKey,
-				typeof options === 'function'
-					? options({ canonicalMutationFn })
-					: options
-			);
-		};
-	},
-	[Util.Mutation.getMutationDefaults]: ({ queryClient, path }) => {
-		return () => {
-			return queryClient.getMutationDefaults(getMutationKeyInternal(path));
-		};
-	},
-	[Util.Mutation.isMutating]: ({ queryClient, path }) => {
-		return () => {
-			return queryClient.isMutating({
-				mutationKey: getMutationKeyInternal(path),
-				exact: true,
-			});
-		};
-	},
-};
-
-function createUtilsProxy(ctx: WrapperContext) {
+function createQueriesProxy({ client, abortOnUnmount }: SvelteQueryWrapperContext) {
 	return new DeepProxy(
 		{},
 		{
-			get(_target, key, _receiver) {
-				if (key === Util.Query.client) return ctx.baseClient;
-
-				if (hasOwn(utilProcedures, key)) {
-					return utilProcedures[key](
-						Object.assign(ctx, { key, path: this.path })
-					);
-				}
-
+			get() {
 				return this.nest(() => {});
+			},
+			apply(_target, _thisArg, argList) {
+				const [input, opts] = argList;
+
+				const shouldAbortOnUnmount =
+					opts?.trpc?.abortOnUnmount ?? abortOnUnmount;
+
+				const queryKey = getQueryKeyInternal(this.path, input, 'query');
+
+				return {
+					...opts,
+					queryKey,
+					queryFn: ({ signal }) =>
+						client.query(
+							...getClientArgs(queryKey, {
+								trpc: {
+									...opts?.trpc,
+									...(shouldAbortOnUnmount && { signal }),
+								},
+							})
+						),
+				} satisfies CreateQueryOptions;
 			},
 		}
 	);
@@ -1132,7 +1136,7 @@ function effect<T extends CallableFunction, U>(
 
 const procedures: Record<
 	ValueOf<typeof Procedure>,
-	(ctx: WrapperContext) => any
+	(ctx: SvelteQueryWrapperContext) => any
 > = {
 	[Procedure.queryKey]: ({ path }) => {
 		return (input?: any, opts?: any) => getQueryKeyInternal(path, input, opts);
@@ -1622,6 +1626,35 @@ const procedureExts = {
 	},
 };
 
+type ProcedureOrRouter =
+	| CreateMutationProcedure
+	| CreateQueryProcedure
+	| AddQueryPropTypes;
+
+type GetParams<TProcedureOrRouter extends ProcedureOrRouter> =
+	TProcedureOrRouter extends CreateQueryProcedure<infer TInput>
+		? [input?: GetQueryProcedureInput<TInput>, type?: QueryType]
+		: [];
+
+/**
+ * Method to extract the query key for a procedure
+ * @param procedureOrRouter - procedure or any router
+ * @param input - input to procedureOrRouter
+ * @param type - defaults to `any`
+ * @link https://trpc.io/docs/v11/getQueryKey
+ */
+export function getQueryKey<TProcedureOrRouter extends ProcedureOrRouter>(
+	procedureOrRouter: TProcedureOrRouter,
+	..._params: GetParams<TProcedureOrRouter>
+) {
+	const [input, type] = _params;
+
+	// @ts-expect-error - we don't expose _def on the type layer
+	const path = procedureOrRouter._def().path;
+	const queryKey = getQueryKeyInternal(path, input, type ?? 'any');
+	return queryKey;
+}
+
 interface SvelteQueryWrapperOptions<TRouter extends AnyRouter> {
 	client: CreateTRPCProxyClient<TRouter>;
 	queryClient?: QueryClient;
@@ -1635,7 +1668,10 @@ export function svelteQueryWrapper<TRouter extends AnyRouter>({
 }: SvelteQueryWrapperOptions<TRouter>) {
 	type Client = typeof client;
 	type RouterError = TRPCClientErrorLike<TRouter>;
-	type ClientWithQuery = AddQueryPropTypes<Client, RouterError>;
+	type ClientWithQuery =
+		Client extends Record<any, any>
+			? AddQueryPropTypes<Client, RouterError>
+			: Client;
 
 	const queryClient = _queryClient ?? useQueryClient();
 
