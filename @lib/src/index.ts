@@ -39,9 +39,10 @@ import {
 	type DefaultError,
 	type OmitKeyof,
 	type QueriesPlaceholderDataFunction,
+	hashKey,
 } from '@tanstack/svelte-query';
 
-import { onDestroy, onMount } from 'svelte';
+import { afterUpdate, onDestroy, onMount } from 'svelte';
 import {
 	derived,
 	get,
@@ -798,23 +799,25 @@ function createQueriesProxy({ client, abortOnUnmount }: WrapperContext) {
 				return this.nest(() => {});
 			},
 			apply(_target, _thisArg, argList) {
-				let [input, opts] = argList;
-				let path = '';
+				const [input, opts] = argList;
 
 				const shouldAbortOnUnmount =
 					opts?.trpc?.abortOnUnmount ?? abortOnUnmount;
 
 				const queryKey = getQueryKeyInternal(this.path, input, 'query');
-				[path, input, opts] = getClientArgs(queryKey, opts);
 
 				return {
 					...opts,
 					queryKey,
 					queryFn: ({ signal }) =>
-						client.query(path, input, {
-							...opts,
-							...(shouldAbortOnUnmount && { signal }),
-						}),
+						client.query(
+							...getClientArgs(queryKey, {
+								trpc: {
+									...opts?.trpc,
+									...(shouldAbortOnUnmount && { signal }),
+								},
+							})
+						),
 				} satisfies CreateQueryOptions;
 			},
 		}
@@ -1093,6 +1096,37 @@ function createUtilsProxy(ctx: WrapperContext) {
 	);
 }
 
+// CREDIT: https://svelte.dev/repl/300c16ee38af49e98261eef02a9b04a8?version=3.38.2
+function effect<T extends CallableFunction, U>(
+	cb: () => T | void,
+	deps: () => U[]
+) {
+	let cleanup: T | void;
+
+	function apply() {
+		if (cleanup) cleanup();
+		cleanup = cb();
+	}
+
+	if (deps) {
+		let values: U[] = [];
+		afterUpdate(() => {
+			const new_values = deps();
+			if (new_values.some((value, i) => value !== values[i])) {
+				apply();
+				values = new_values;
+			}
+		});
+	} else {
+		// no deps = always run
+		afterUpdate(apply);
+	}
+
+	onDestroy(() => {
+		if (cleanup) cleanup();
+	});
+}
+
 const procedures: Record<
 	ValueOf<typeof Procedure>,
 	(ctx: WrapperContext) => any
@@ -1111,13 +1145,19 @@ const procedures: Record<
 			if (!isInputStore && !isOptsStore && !currentOpts?.lazy) {
 				const shouldAbortOnUnmount =
 					opts?.trpc?.abortOnUnmount ?? abortOnUnmount;
+
 				return createQuery({
 					...opts,
 					queryKey,
 					queryFn: ({ signal }) =>
-						client.query(path.join('.'), input, {
-							...(shouldAbortOnUnmount && { signal }),
-						}),
+						client.query(
+							...getClientArgs(queryKey, {
+								trpc: {
+									...opts?.trpc,
+									...(shouldAbortOnUnmount && { signal }),
+								},
+							})
+						),
 				});
 			}
 
@@ -1135,13 +1175,21 @@ const procedures: Record<
 					([$input, $opts, $enabled]) => {
 						const newInput = !isBlank($input) ? $input : input;
 						const newOpts = !isBlank($opts) ? $opts : opts;
+
+						const queryKey = getQueryKeyInternal(path, newInput, 'query');
+
 						return {
 							...newOpts,
-							queryKey: getQueryKeyInternal(path, newInput, 'query'),
+							queryKey,
 							queryFn: ({ signal }) =>
-								client.query(path.join('.'), newInput, {
-									...(shouldAbortOnUnmount && { signal }),
-								}),
+								client.query(
+									...getClientArgs(queryKey, {
+										trpc: {
+											...newOpts?.trpc,
+											...(shouldAbortOnUnmount && { signal }),
+										},
+									})
+								),
 							...(!isBlank($enabled) && {
 								enabled: $enabled && (newOpts?.enabled ?? true),
 							}),
@@ -1164,19 +1212,24 @@ const procedures: Record<
 		};
 	},
 	[Procedure.serverQuery]: ({ path, client, queryClient, abortOnUnmount }) => {
-		const pathString = path.join('.');
-
 		return async (_input: any, _opts?: any) => {
 			let input = _input;
 			let opts = _opts;
 			let shouldAbortOnUnmount = opts?.trpc?.abortOnUnmount ?? abortOnUnmount;
 
+			const queryKey = getQueryKeyInternal(path, input, 'query');
+
 			const query: FetchQueryOptions = {
-				queryKey: getQueryKeyInternal(path, input, 'query'),
+				queryKey,
 				queryFn: ({ signal }) =>
-					client.query(pathString, input, {
-						...(shouldAbortOnUnmount && { signal }),
-					}),
+					client.query(
+						...getClientArgs(queryKey, {
+							trpc: {
+								...opts?.trpc,
+								...(shouldAbortOnUnmount && { signal }),
+							},
+						})
+					),
 			};
 
 			const cache = queryClient
@@ -1209,13 +1262,19 @@ const procedures: Record<
 						([$input, $opts, $staleTime]) => {
 							const newInput = !isBlank($input) ? $input : input;
 							const newOpts = !isBlank($opts) ? $opts : opts;
+							const queryKey = getQueryKeyInternal(path, newInput, 'query');
 							return {
 								...newOpts,
-								queryKey: getQueryKeyInternal(path, newInput, 'query'),
+								queryKey,
 								queryFn: ({ signal }) =>
-									client.query(pathString, newInput, {
-										...(shouldAbortOnUnmount && { signal }),
-									}),
+									client.query(
+										...getClientArgs(queryKey, {
+											trpc: {
+												...newOpts?.trpc,
+												...(shouldAbortOnUnmount && { signal }),
+											},
+										})
+									),
 								...($staleTime && { staleTime: $staleTime }),
 							} satisfies CreateQueryOptions;
 						}
@@ -1245,11 +1304,21 @@ const procedures: Record<
 					...opts,
 					initialPageParam: opts?.initialCursor ?? null,
 					queryKey,
-					queryFn: ({ pageParam, signal }) =>
+					queryFn: ({ pageParam, signal, direction }) =>
 						client.query(
-							path.join('.'),
-							{ ...input, cursor: pageParam ?? opts?.initialCursor },
-							{ ...(shouldAbortOnUnmount && { signal }) }
+							...getClientArgs(
+								queryKey,
+								{
+									trpc: {
+										...opts?.trpc,
+										...(shouldAbortOnUnmount && { signal }),
+									},
+								},
+								{
+									pageParam: pageParam ?? opts.initialCursor,
+									direction,
+								}
+							)
 						),
 				} satisfies CreateInfiniteQueryOptions);
 			}
@@ -1268,18 +1337,26 @@ const procedures: Record<
 					([$input, $opts, $enabled]) => {
 						const newInput = !isBlank($input) ? $input : input;
 						const newOpts = !isBlank($opts) ? $opts : opts;
+						const queryKey = getQueryKeyInternal(path, newInput, 'infinite');
 
 						return {
 							...newOpts,
-							queryKey: getQueryKeyInternal(path, newInput, 'infinite'),
-							queryFn: ({ pageParam, signal }) =>
+							queryKey,
+							queryFn: ({ pageParam, signal, direction }) =>
 								client.query(
-									path.join('.'),
-									{
-										...newInput,
-										cursor: pageParam ?? newOpts?.initialCursor,
-									},
-									{ ...(shouldAbortOnUnmount && { signal }) }
+									...getClientArgs(
+										queryKey,
+										{
+											trpc: {
+												...newOpts?.trpc,
+												...(shouldAbortOnUnmount && { signal }),
+											},
+										},
+										{
+											pageParam: pageParam ?? newOpts.initialCursor,
+											direction,
+										}
+									)
 								),
 							...(!isBlank($enabled) && {
 								enabled: $enabled && (newOpts?.enabled ?? true),
@@ -1311,20 +1388,30 @@ const procedures: Record<
 		queryClient,
 		abortOnUnmount,
 	}) => {
-		const pathString = path.join('.');
-
 		return async (_input: any, _opts?: any) => {
 			let input = _input;
 			let opts = _opts;
 			let shouldAbortOnUnmount = opts?.trpc?.abortOnUnmount ?? abortOnUnmount;
 
+			const queryKey = getQueryKeyInternal(path, input, 'infinite');
+
 			const query: Omit<FetchInfiniteQueryOptions, 'initialPageParam'> = {
-				queryKey: getQueryKeyInternal(path, input, 'infinite'),
-				queryFn: ({ pageParam, signal }) =>
+				queryKey,
+				queryFn: ({ pageParam, signal, direction }) =>
 					client.query(
-						pathString,
-						{ ...input, cursor: pageParam ?? opts?.initialCursor },
-						{ ...(shouldAbortOnUnmount && { signal }) }
+						...getClientArgs(
+							queryKey,
+							{
+								trpc: {
+									...opts?.trpc,
+									...(shouldAbortOnUnmount && { signal }),
+								},
+							},
+							{
+								pageParam: pageParam ?? opts.initialCursor,
+								direction,
+							}
+						)
 					),
 			};
 
@@ -1358,19 +1445,27 @@ const procedures: Record<
 						([$input, $opts, $staleTime]) => {
 							const newInput = !isBlank($input) ? $input : input;
 							const newOpts = !isBlank($opts) ? $opts : opts;
+							const queryKey = getQueryKeyInternal(path, newInput, 'infinite');
 
 							return {
 								...newOpts,
 								initialPageParam: newOpts?.initialCursor,
-								queryKey: getQueryKeyInternal(path, newInput, 'infinite'),
-								queryFn: ({ pageParam, signal }) =>
+								queryKey,
+								queryFn: ({ pageParam, signal, direction }) =>
 									client.query(
-										pathString,
-										{
-											...newInput,
-											cursor: pageParam ?? newOpts?.initialCursor,
-										},
-										{ ...(shouldAbortOnUnmount && { signal }) }
+										...getClientArgs(
+											queryKey,
+											{
+												trpc: {
+													...newOpts?.trpc,
+													...(shouldAbortOnUnmount && { signal }),
+												},
+											},
+											{
+												pageParam: pageParam ?? newOpts.initialCursor,
+												direction,
+											}
+										)
 									),
 								...($staleTime && { staleTime: $staleTime }),
 							} satisfies CreateInfiniteQueryOptions;
@@ -1380,37 +1475,65 @@ const procedures: Record<
 			};
 		};
 	},
-	[Procedure.mutate]: ({ path, client }) => {
+	[Procedure.mutate]: ({ path, client, queryClient }) => {
 		return (opts?: any) => {
+			const mutationKey = getMutationKeyInternal(path);
+			const defaultOpts = queryClient.defaultMutationOptions(
+				queryClient.getMutationDefaults(mutationKey)
+			);
+
+			// TODO: Add useMutation override to `svelteQueryWrapper`
+			const mutationSuccessOverride = (options: any) => options.originalFn();
+
 			return createMutation({
 				...opts,
-				mutationKey: [path],
-				mutationFn: (data) => client.mutation(path.join('.'), data),
+				mutationKey,
+				mutationFn: (input) =>
+					client.mutation(...getClientArgs([path, { input }], opts)),
+				onSuccess(...args) {
+					const originalFn = () =>
+						opts?.onSuccess?.(...args) ?? defaultOpts?.onSuccess?.(...args);
+
+					return mutationSuccessOverride({
+						originalFn,
+						queryClient,
+						meta: opts?.meta ?? defaultOpts?.meta ?? {},
+					});
+				},
 			});
 		};
 	},
 	[Procedure.subscribe]: ({ path, client }) => {
 		return (input: any, opts?: any) => {
 			const enabled = opts?.enabled ?? true;
-			if (!enabled) return;
+			const queryKey = hashKey(getQueryKeyInternal(path, input, 'any'));
 
-			let isStopped = false;
-			const subscription = client.subscription(path.join('.'), input, {
-				onStarted: () => {
-					if (!isStopped) opts?.onStarted?.();
+			effect(
+				() => {
+					if (!enabled) return;
+					let isStopped = false;
+					const subscription = client.subscription(
+						path.join('.'),
+						input ?? undefined,
+						{
+							onStarted: () => {
+								if (!isStopped) opts?.onStarted?.();
+							},
+							onData: (data: any) => {
+								if (!isStopped) opts?.onData?.(data);
+							},
+							onError: (err: any) => {
+								if (!isStopped) opts?.onError?.(err);
+							},
+						}
+					);
+					return () => {
+						isStopped = true;
+						subscription.unsubscribe();
+					};
 				},
-				onData: (data: any) => {
-					if (!isStopped) opts?.onData?.(data);
-				},
-				onError: (err: any) => {
-					if (!isStopped) opts?.onError?.(err);
-				},
-			});
-
-			return onDestroy(() => {
-				isStopped = true;
-				subscription.unsubscribe();
-			});
+				() => [queryKey, enabled]
+			);
 		};
 	},
 	[Procedure.queries]: (ctx) => {
