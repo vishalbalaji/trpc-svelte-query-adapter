@@ -51,8 +51,6 @@ import {
 	type Writable,
 } from 'svelte/store';
 
-type StoreOrVal<T> = _StoreOrVal<T> | Writable<T>;
-
 /**
  * Omits the key without removing a potential union
  * @internal
@@ -60,25 +58,6 @@ type StoreOrVal<T> = _StoreOrVal<T> | Writable<T>;
 type DistributiveOmit<TObj, TKey extends keyof any> = TObj extends any
 	? Omit<TObj, TKey>
 	: never;
-
-function isSvelteStore<T extends object>(
-	obj: StoreOrVal<T>
-): obj is Readable<T> {
-	return (
-		typeof obj === 'object' &&
-		'subscribe' in obj &&
-		typeof obj.subscribe === 'function'
-	);
-}
-
-const blank = Symbol('blank');
-const isBlank = (val: unknown): val is typeof blank => val === blank;
-const blankStore: Readable<typeof blank> = {
-	subscribe(run) {
-		run(blank);
-		return () => {};
-	},
-};
 
 type ValueOf<T> = T[keyof T];
 
@@ -96,9 +75,7 @@ type ExhaustiveRecord<
 	: U extends { [K in TKey]: TValue } ? U
 	: never; // prettier-ignore
 
-function hasOwn<T extends object>(obj: T, prop: PropertyKey): prop is keyof T {
-	return typeof obj === 'object' && Object.hasOwn(obj as any, prop);
-}
+type StoreOrVal<T> = _StoreOrVal<T> | Writable<T>;
 
 // CREDIT: https://stackoverflow.com/a/63448246
 type WithNevers<T, V> = {
@@ -118,6 +95,37 @@ type HasQuery = { query: (...args: any[]) => any };
 type HasMutate = { mutate: (...args: any[]) => any };
 type HasSubscribe = { subscribe: (...args: any[]) => any };
 type OnlyQueries<TClient> = Without<TClient, HasMutate | HasSubscribe>;
+
+function isSvelteStore<T extends object>(
+	obj: StoreOrVal<T>
+): obj is Readable<T> {
+	return (
+		typeof obj === 'object' &&
+		'subscribe' in obj &&
+		typeof obj.subscribe === 'function'
+	);
+}
+
+/**
+ * Check that value is object
+ * @internal
+ */
+function isObject(value: unknown): value is Record<string, unknown> {
+	return !!value && !Array.isArray(value) && typeof value === 'object';
+}
+
+const blank = Symbol('blank');
+const isBlank = (val: unknown): val is typeof blank => val === blank;
+const blankStore: Readable<typeof blank> = {
+	subscribe(run) {
+		run(blank);
+		return () => {};
+	},
+};
+
+function hasOwn<T extends object>(obj: T, prop: PropertyKey): prop is keyof T {
+	return typeof obj === 'object' && Object.hasOwn(obj as any, prop);
+}
 
 const Procedure = {
 	query: 'createQuery',
@@ -189,14 +197,6 @@ type QueryKeyKnown<TInput, TType extends Exclude<QueryType, 'any'>> = [
 	{ input?: GetQueryProcedureInput<TInput>; type: TType }?,
 ];
 
-/**
- * Check that value is object
- * @internal
- */
-function isObject(value: unknown): value is Record<string, unknown> {
-	return !!value && !Array.isArray(value) && typeof value === 'object';
-}
-
 function getQueryKeyInternal(
 	path: readonly string[],
 	input: unknown,
@@ -251,10 +251,15 @@ function getMutationKeyInternal(path: readonly string[]) {
 
 type GetQueryKey<TInput = undefined> = [TInput] extends [undefined | void]
 	? {
+			/**
+			 * @deprecated import `getQueryKey` from `trpc-svelte-query-adapter` instead
+			 */
 			[Procedure.queryKey]: () => TRPCQueryKey;
 		}
 	: {
 			/**
+			 * @deprecated import `getQueryKey` from `trpc-svelte-query-adapter` instead
+			 *
 			 * Method to extract the query key for a procedure
 			 * @param type - defaults to `any`
 			 */
@@ -708,11 +713,13 @@ type CreateInfiniteQueryProcedure<TInput = any, TOutput = any, TError = any> = {
 	>;
 };
 
-type QueryProcedures<TInput, TOutput, TError> = GetQueryKey<TInput> &
-	CreateQueryProcedure<TInput, TOutput, TError> &
-	(TInput extends { cursor?: any }
-		? CreateInfiniteQueryProcedure<TInput, TOutput, TError>
-		: {});
+type QueryProcedures<TInput, TOutput, TError> =
+		CreateQueryProcedure<TInput, TOutput, TError>
+	& (TInput extends { cursor?: any }
+			? CreateInfiniteQueryProcedure<TInput, TOutput, TError>
+			: {})
+	& GetQueryKey<TInput>
+; // prettier-ignore
 
 type CreateMutationProcedure<
 	TInput = any,
@@ -754,30 +761,27 @@ type CreateSubscriptionProcedure<TInput = any, TOutput = any, TError = any> = {
 	};
 } & {};
 
-type AddQueryPropTypes<TClient, TError> =
-	TClient extends Record<any, any>
-		? {
-				[K in keyof TClient]: TClient[K] extends HasQuery
-					? QueryProcedures<
-							Parameters<TClient[K]['query']>[0],
-							Awaited<ReturnType<TClient[K]['query']>>,
-							TError
-						> & {}
-					: TClient[K] extends HasMutate
-						? CreateMutationProcedure<
-								Parameters<TClient[K]['mutate']>[0],
-								Awaited<ReturnType<TClient[K]['mutate']>>,
-								TError
-							>
-						: TClient[K] extends HasSubscribe
-							? CreateSubscriptionProcedure<
-									Parameters<TClient[K]['subscribe']>[0],
-									GetSubscriptionOutput<Parameters<TClient[K]['subscribe']>[1]>,
-									TError
-								>
-							: GetQueryKey & AddQueryPropTypes<TClient[K], TError>;
-			}
-		: TClient;
+export type AddQueryPropTypes<TClient = any, TError = any> = {
+	[K in keyof TClient]: TClient[K] extends HasQuery
+		? QueryProcedures<
+				Parameters<TClient[K]['query']>[0],
+				Awaited<ReturnType<TClient[K]['query']>>,
+				TError
+			> & {}
+		: TClient[K] extends HasMutate
+			? CreateMutationProcedure<
+					Parameters<TClient[K]['mutate']>[0],
+					Awaited<ReturnType<TClient[K]['mutate']>>,
+					TError
+				>
+			: TClient[K] extends HasSubscribe
+				? CreateSubscriptionProcedure<
+						Parameters<TClient[K]['subscribe']>[0],
+						GetSubscriptionOutput<Parameters<TClient[K]['subscribe']>[1]>,
+						TError
+					>
+				: AddQueryPropTypes<TClient[K], TError> & GetQueryKey;
+};
 
 // Implementation
 type UntypedClient = TRPCUntypedClient<AnyRouter>;
@@ -789,6 +793,37 @@ interface WrapperContext {
 	path: string[];
 	key: string;
 	abortOnUnmount?: boolean;
+}
+
+function getQueryType(
+	utilName:
+		| Exclude<keyof typeof Util.Query, 'client'>
+		| keyof typeof Util.Mutation
+): QueryType {
+	switch (utilName) {
+		case 'fetch':
+		case 'ensureData':
+		case 'prefetch':
+		case 'getData':
+		case 'setData':
+			// case 'setQueriesData':
+			return 'query';
+
+		case 'fetchInfinite':
+		case 'prefetchInfinite':
+		case 'getInfiniteData':
+		case 'setInfiniteData':
+			return 'infinite';
+
+		case 'setMutationDefaults':
+		case 'getMutationDefaults':
+		case 'isMutating':
+		case 'cancel':
+		case 'invalidate':
+		case 'refetch':
+		case 'reset':
+			return 'any';
+	}
 }
 
 function createQueriesProxy({ client, abortOnUnmount }: WrapperContext) {
@@ -824,39 +859,9 @@ function createQueriesProxy({ client, abortOnUnmount }: WrapperContext) {
 	);
 }
 
-function getQueryType(
-	utilName:
-		| Exclude<keyof typeof Util.Query, 'client'>
-		| keyof typeof Util.Mutation
-): QueryType {
-	switch (utilName) {
-		case 'fetch':
-		case 'ensureData':
-		case 'prefetch':
-		case 'getData':
-		case 'setData':
-			// case 'setQueriesData':
-			return 'query';
-
-		case 'fetchInfinite':
-		case 'prefetchInfinite':
-		case 'getInfiniteData':
-		case 'setInfiniteData':
-			return 'infinite';
-
-		case 'setMutationDefaults':
-		case 'getMutationDefaults':
-		case 'isMutating':
-		case 'cancel':
-		case 'invalidate':
-		case 'refetch':
-		case 'reset':
-			return 'any';
-	}
-}
-
 const utilProcedures: Record<
-	Exclude<ValueOf<typeof Util.Query>, 'client'> | ValueOf<typeof Util.Mutation>,
+	| Exclude<ValueOf<typeof Util.Query>, 'client'>
+	| ValueOf<typeof Util.Mutation>, // prettier-ignore
 	(ctx: WrapperContext) => any
 > = {
 	// QueryUtils
@@ -1622,6 +1627,35 @@ const procedureExts = {
 	},
 };
 
+type ProcedureOrRouter =
+	| CreateMutationProcedure
+	| CreateQueryProcedure
+	| AddQueryPropTypes;
+
+type GetParams<TProcedureOrRouter extends ProcedureOrRouter> =
+	TProcedureOrRouter extends CreateQueryProcedure<infer TInput>
+		? [input?: GetQueryProcedureInput<TInput>, type?: QueryType]
+		: [];
+
+/**
+ * Method to extract the query key for a procedure
+ * @param procedureOrRouter - procedure or any router
+ * @param input - input to procedureOrRouter
+ * @param type - defaults to `any`
+ * @link https://trpc.io/docs/v11/getQueryKey
+ */
+export function getQueryKey<TProcedureOrRouter extends ProcedureOrRouter>(
+	procedureOrRouter: TProcedureOrRouter,
+	..._params: GetParams<TProcedureOrRouter>
+) {
+	const [input, type] = _params;
+
+	// @ts-expect-error - we don't expose _def on the type layer
+	const path = procedureOrRouter._def().path;
+	const queryKey = getQueryKeyInternal(path, input, type ?? 'any');
+	return queryKey;
+}
+
 interface SvelteQueryWrapperOptions<TRouter extends AnyRouter> {
 	client: CreateTRPCProxyClient<TRouter>;
 	queryClient?: QueryClient;
@@ -1635,7 +1669,10 @@ export function svelteQueryWrapper<TRouter extends AnyRouter>({
 }: SvelteQueryWrapperOptions<TRouter>) {
 	type Client = typeof client;
 	type RouterError = TRPCClientErrorLike<TRouter>;
-	type ClientWithQuery = AddQueryPropTypes<Client, RouterError>;
+	type ClientWithQuery =
+		Client extends Record<any, any>
+			? AddQueryPropTypes<Client, RouterError>
+			: Client;
 
 	const queryClient = _queryClient ?? useQueryClient();
 
