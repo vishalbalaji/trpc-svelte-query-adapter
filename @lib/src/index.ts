@@ -258,7 +258,7 @@ type GetQueryKey<TInput = undefined> = [TInput] extends [undefined | void]
 			 * Method to extract the query key for a procedure
 			 * @param type - defaults to `any`
 			 */
-			[Procedure.queryKey]: (input: TInput, type?: QueryType) => TRPCQueryKey;
+			[Procedure.queryKey]: (input?: TInput, type?: QueryType) => TRPCQueryKey;
 		} & {};
 
 function getClientArgs<TOptions>(
@@ -942,6 +942,7 @@ const utilProcedures: Record<
 	},
 	[Util.Query.invalidate]: ({ path, queryClient, key }) => {
 		return (input?: any, filters?: any, options?: any) => {
+			console.log(path, input, getQueryType(key as any));
 			const queryKey = getQueryKeyInternal(
 				path,
 				input,
@@ -1087,7 +1088,9 @@ function createUtilsProxy(ctx: WrapperContext) {
 				if (key === Util.Query.client) return ctx.baseClient;
 
 				if (hasOwn(utilProcedures, key)) {
-					return utilProcedures[key](Object.assign(ctx, { key }));
+					return utilProcedures[key](
+						Object.assign(ctx, { key, path: this.path })
+					);
 				}
 
 				return this.nest(() => {});
@@ -1132,7 +1135,7 @@ const procedures: Record<
 	(ctx: WrapperContext) => any
 > = {
 	[Procedure.queryKey]: ({ path }) => {
-		return (input: any, opts?: any) => getQueryKeyInternal(path, input, opts);
+		return (input?: any, opts?: any) => getQueryKeyInternal(path, input, opts);
 	},
 	[Procedure.query]: ({ path, client, abortOnUnmount, queryClient }) => {
 		return (input: any, opts?: any) => {
