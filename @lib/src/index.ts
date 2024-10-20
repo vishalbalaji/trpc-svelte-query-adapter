@@ -34,7 +34,6 @@ import {
 	type CreateQueryResult,
 	type CreateInfiniteQueryResult,
 	type CreateMutationResult,
-	type StoreOrVal as _StoreOrVal,
 	type QueryObserverResult,
 	type QueryObserverOptions,
 	type DefaultError,
@@ -75,7 +74,7 @@ type ExhaustiveRecord<
 	: U extends { [K in TKey]: TValue } ? U
 	: never; // prettier-ignore
 
-type StoreOrVal<T> = _StoreOrVal<T> | Writable<T>;
+type StoreOrVal<T> = T | Readable<T> | Writable<T>;
 
 // CREDIT: https://stackoverflow.com/a/63448246
 type WithNevers<T, V> = {
