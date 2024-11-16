@@ -40,7 +40,8 @@
     "@tanstack/svelte-query": "^5.8.2",
     "@trpc/client": "^10.43.3",
     "@trpc/server": "^10.43.3",
-    "svelte": "^4.2.3",
+    "@sveltejs/vite-plugin-svelte": "^4.0.0",
+    "svelte": "^5",
     "typescript": "^5.2.2"
   },
   "devDependencies": {
