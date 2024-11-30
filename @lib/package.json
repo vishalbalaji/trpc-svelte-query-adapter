@@ -27,17 +27,17 @@
   },
   "license": "MIT",
   "type": "module",
-  "types": "./src/index.ts",
-  "module": "./src/index.ts",
+  "types": "./src/index.svelte.ts",
+  "module": "./src/index.svelte.ts",
   "exports": {
     "types": "./index.d.ts",
-    "import": "./src/index.ts"
+    "import": "./src/index.svelte.ts"
   },
   "dependencies": {
     "proxy-deep": "^4.0.1"
   },
   "peerDependencies": {
-    "@tanstack/svelte-query": "^5.8.2",
+    "@tanstack/svelte-query": "https://pkg.pr.new/@tanstack/svelte-query@28f98f9",
     "@trpc/client": "^10.43.3",
     "@trpc/server": "^10.43.3",
 		"svelte": "^5.0.0-next.1",
