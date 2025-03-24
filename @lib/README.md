@@ -4,6 +4,8 @@
 [![License][license-image]][license-url]
 [![Last commit][last-commit-image]][repo-url]
 
+> **See [#67](https://github.com/vishalbalaji/trpc-svelte-query-adapter/issues/67) for the latest updates on this project**
+
 > [!NOTE]
 > The README on [npmjs](https://npmjs.com/trpc-svelte-query-adapter) might not be fully up to date. Please refer to
 > the [README on the Github Repo](https://github.com/vishalbalaji/trpc-svelte-query-adapter/#readme) for the latest setup instructions.
